@@ -9,12 +9,18 @@ import { createCloudflareAccessAuth } from "../adapters/auth/cloudflare-access";
 import { createApp } from "../http/app";
 import { getDocument } from "../core/usecases/get-document";
 
+interface KVNamespace {
+  get(key: string): Promise<string | null>;
+  put(key: string, value: string, options?: { expirationTtl?: number }): Promise<void>;
+}
+
 interface Env {
   DB: D1Db;
   STORAGE: R2Bkt;
   ASSETS: { fetch(req: Request): Promise<Response> };
   ACCESS_AUD: string;
   ACCESS_TEAM_DOMAIN: string;
+  RATE_LIMIT_KV: KVNamespace;
 }
 
 export default {
@@ -49,7 +55,7 @@ export default {
       teamDomain: env.ACCESS_TEAM_DOMAIN,
       audience: env.ACCESS_AUD,
     });
-    const app = createApp({ storage, repo, auth, userRepo });
+    const app = createApp({ storage, repo, auth, userRepo, kvRateLimit: env.RATE_LIMIT_KV });
     return app.fetch(request);
   },
 };

@@ -6,6 +6,7 @@ import { listDocuments } from "../../core/usecases/list-documents";
 import { deleteDocument } from "../../core/usecases/delete-document";
 import { ValidationError } from "../../core/errors";
 import { requireAuth } from "../middleware/require-auth";
+import { uploadRateLimit } from "../middleware/rate-limit";
 
 type Vars = { Variables: { authContext: AuthContext } };
 
@@ -13,7 +14,7 @@ export function apiRoutes(deps: AppDeps): Hono {
   const app = new Hono<Vars>();
   app.use("/*", requireAuth(deps));
 
-  app.post("/upload", async (c) => {
+  app.post("/upload", uploadRateLimit(deps.kvRateLimit) as any, async (c) => {
     const { groupId, userId } = c.get("authContext");
     const form = await c.req.formData();
     const file = form.get("file");

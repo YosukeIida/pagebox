@@ -29,6 +29,9 @@ cf-r2-create:
 cf-secret-aud:
 	$(NODE_CF) sh -c "echo '$$ACCESS_AUD' | npx --yes wrangler@4 secret put ACCESS_AUD --config deploy/cloudflare/wrangler.toml"
 
+cf-kv-create:
+	$(NODE_CF) npx --yes wrangler@4 kv namespace create RATE_LIMIT_KV --config deploy/cloudflare/wrangler.toml
+
 cf-d1-migrate:
 	$(NODE_CF) npx --yes wrangler@4 d1 migrations apply pagebox --remote --config deploy/cloudflare/wrangler.toml
 
@@ -40,4 +43,4 @@ deploy:
 cf-dev:
 	$(NODE_CF) sh -c "npx --yes wrangler@4 dev --config deploy/cloudflare/wrangler.toml"
 
-.PHONY: dev dev-down typecheck cf-d1-create cf-r2-create cf-d1-migrate deploy cf-dev
+.PHONY: dev dev-down typecheck cf-d1-create cf-r2-create cf-kv-create cf-d1-migrate deploy cf-dev

@@ -8,11 +8,17 @@ import { homeRoutes } from "./routes/home";
 import { apiRoutes } from "./routes/api";
 import { viewerRoutes } from "./routes/viewer";
 
+export interface KVNamespace {
+  get(key: string): Promise<string | null>;
+  put(key: string, value: string, options?: { expirationTtl?: number }): Promise<void>;
+}
+
 export interface AppDeps {
   storage: StoragePort;
   repo: DocumentRepository;
   auth: AuthPort;
   userRepo: UserRepository;
+  kvRateLimit?: KVNamespace;
 }
 
 export function createApp(deps: AppDeps): Hono {
