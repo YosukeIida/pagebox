@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="ja" data-theme="">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>pagebox — HTML を、URL に。</title>
+  <style>
+    /* ── Design tokens ── */
+    :root {
+      --bg:           #ffffff;
+      --surface:      #f8f6f1;
+      --surface2:     #f0ece4;
+      --border:       #e8e4dc;
+      --text:         #1a1a1a;
+      --text-muted:   #6b6456;
+      --accent:       #e07b39;
+      --accent-dark:  #c96a28;
+      --accent-light: #f4a96a;
+      --radius:       12px;
+      --radius-lg:    20px;
+      --shadow:       0 2px 12px rgba(0,0,0,.06);
+      --shadow-lg:    0 8px 32px rgba(0,0,0,.10);
+    }
+    [data-theme="dark"] {
+      --bg:         #1a1814;
+      --surface:    #242220;
+      --surface2:   #2e2b28;
+      --border:     #3a3630;
+      --text:       #f0ede8;
+      --text-muted: #9a9080;
+      --shadow:     0 2px 12px rgba(0,0,0,.3);
+      --shadow-lg:  0 8px 32px rgba(0,0,0,.4);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg:#1a1814;--surface:#242220;--surface2:#2e2b28;
+        --border:#3a3630;--text:#f0ede8;--text-muted:#9a9080;
+        --shadow:0 2px 12px rgba(0,0,0,.3);
+        --shadow-lg:0 8px 32px rgba(0,0,0,.4);
+      }
+    }
+
+    /* ── Reset ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      overflow-x: hidden;
+      transition: background .3s, color .3s;
+    }
+
+    /* ── Layout ── */
+    .container { max-width: 900px; margin: 0 auto; padding: 0 24px; }
+
+    /* ── Header ── */
+    header {
+      position: sticky; top: 0; z-index: 100;
+      backdrop-filter: blur(12px) saturate(1.5);
+      background: color-mix(in srgb, var(--bg) 85%, transparent);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 0;
+      transition: background .3s;
+    }
+    header .inner {
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .logo {
+      font-size: 1.25rem; font-weight: 800;
+      letter-spacing: -.03em; color: var(--accent);
+      text-decoration: none;
+    }
+    .theme-btn {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; padding: 6px 12px;
+      cursor: pointer; color: var(--text-muted); font-size: .875rem;
+      transition: color .2s;
+    }
+    .theme-btn:hover { color: var(--text); }
+
+    /* ── Hero ── */
+    .hero {
+      padding: 100px 0 80px;
+      text-align: center;
+      position: relative; overflow: hidden;
+    }
+    .hero-bg {
+      position: absolute; inset: 0; pointer-events: none;
+      background:
+        radial-gradient(ellipse 60% 50% at 20% 40%, color-mix(in srgb, var(--accent) 8%, transparent) 0%, transparent 70%),
+        radial-gradient(ellipse 40% 60% at 80% 60%, color-mix(in srgb, var(--accent) 5%, transparent) 0%, transparent 70%);
+    }
+    .hero-grid {
+      position: absolute; inset: 0; pointer-events: none;
+      background-image:
+        linear-gradient(var(--border) 1px, transparent 1px),
+        linear-gradient(90deg, var(--border) 1px, transparent 1px);
+      background-size: 48px 48px;
+      opacity: .4;
+      mask-image: radial-gradient(ellipse 80% 80% at center, black, transparent);
+    }
+    .hero-eyebrow {
+      display: inline-block;
+      background: color-mix(in srgb, var(--accent) 15%, transparent);
+      color: var(--accent);
+      font-size: .8125rem; font-weight: 600; letter-spacing: .06em;
+      text-transform: uppercase;
+      padding: 4px 12px; border-radius: 999px;
+      margin-bottom: 24px;
+      border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+    }
+    .hero h1 {
+      font-size: clamp(2.5rem, 7vw, 5rem);
+      font-weight: 900; letter-spacing: -.04em; line-height: 1.1;
+      margin-bottom: 24px;
+    }
+    .gradient-text {
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 50%, var(--accent) 100%);
+      background-size: 200% auto;
+      -webkit-background-clip: text; background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: shimmer 4s linear infinite;
+    }
+    @keyframes shimmer {
+      0% { background-position: 0% center; }
+      100% { background-position: 200% center; }
+    }
+    .hero-sub {
+      font-size: clamp(1rem, 2.5vw, 1.25rem);
+      color: var(--text-muted); max-width: 500px; margin: 0 auto 40px;
+    }
+    .badge-row {
+      display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;
+    }
+    .badge {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 999px; padding: 6px 14px;
+      font-size: .8125rem; color: var(--text-muted);
+      display: flex; align-items: center; gap: 6px;
+    }
+    .badge span { color: var(--accent); font-weight: 600; }
+
+    /* ── Section common ── */
+    section { padding: 80px 0; }
+    .section-label {
+      text-align: center; margin-bottom: 12px;
+      font-size: .75rem; font-weight: 700; letter-spacing: .1em;
+      text-transform: uppercase; color: var(--accent);
+    }
+    .section-title {
+      text-align: center; margin-bottom: 16px;
+      font-size: clamp(1.5rem, 3vw, 2rem);
+      font-weight: 800; letter-spacing: -.02em;
+    }
+    .section-desc {
+      text-align: center; color: var(--text-muted);
+      max-width: 480px; margin: 0 auto 56px;
+      font-size: 1.0625rem;
+    }
+
+    /* ── Steps ── */
+    .steps {
+      display: grid; grid-template-columns: 1fr auto 1fr auto 1fr;
+      align-items: center; gap: 0;
+    }
+    @media (max-width: 640px) {
+      .steps { grid-template-columns: 1fr; gap: 12px; }
+      .arrow { transform: rotate(90deg); }
+    }
+    .step-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); padding: 32px 24px;
+      text-align: center;
+      box-shadow: var(--shadow);
+      transition: transform .25s, box-shadow .25s;
+      opacity: 0; transform: translateY(20px);
+    }
+    .step-card.visible {
+      animation: fadeUp .5s ease forwards;
+    }
+    .step-card:nth-child(1) { animation-delay: 0s; }
+    .step-card:nth-child(3) { animation-delay: .15s; }
+    .step-card:nth-child(5) { animation-delay: .3s; }
+    @keyframes fadeUp {
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .step-card:hover {
+      transform: translateY(-6px);
+      box-shadow: var(--shadow-lg);
+    }
+    .step-icon {
+      font-size: 2.5rem; margin-bottom: 16px;
+      display: block;
+    }
+    .step-num {
+      font-size: .75rem; font-weight: 700; color: var(--accent);
+      letter-spacing: .08em; text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .step-title { font-size: 1.0625rem; font-weight: 700; margin-bottom: 8px; }
+    .step-desc { font-size: .875rem; color: var(--text-muted); }
+    .arrow {
+      display: flex; align-items: center; justify-content: center;
+      padding: 0 12px;
+    }
+    .arrow svg { overflow: visible; }
+    .arrow-line {
+      stroke: var(--accent); stroke-width: 2; fill: none;
+      stroke-dasharray: 40; stroke-dashoffset: 40;
+      animation: drawArrow 1s ease forwards;
+      animation-delay: .5s;
+    }
+    @keyframes drawArrow {
+      to { stroke-dashoffset: 0; }
+    }
+
+    /* ── Features ── */
+    .features-bg { background: var(--surface); }
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+    }
+    .feature-card {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 28px 24px;
+      box-shadow: var(--shadow);
+      transition: transform .2s, box-shadow .2s;
+      opacity: 0; transform: translateY(16px);
+    }
+    .feature-card.visible {
+      animation: fadeUp .4s ease forwards;
+    }
+    .feature-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
+    .feature-icon { font-size: 1.75rem; margin-bottom: 14px; }
+    .feature-title { font-size: 1rem; font-weight: 700; margin-bottom: 8px; }
+    .feature-desc { font-size: .875rem; color: var(--text-muted); line-height: 1.55; }
+
+    /* ── Terminal ── */
+    .terminal-wrap { max-width: 600px; margin: 0 auto; }
+    .terminal {
+      background: #0e0c0a; border-radius: var(--radius-lg);
+      overflow: hidden; box-shadow: var(--shadow-lg);
+      border: 1px solid #3a3630;
+    }
+    .terminal-bar {
+      background: #1a1714; padding: 12px 16px;
+      display: flex; align-items: center; gap: 8px;
+      border-bottom: 1px solid #2a2724;
+    }
+    .dot { width: 12px; height: 12px; border-radius: 50%; }
+    .dot-r { background: #ff5f56; }
+    .dot-y { background: #ffbd2e; }
+    .dot-g { background: #27c93f; }
+    .terminal-title {
+      margin-left: 8px; font-size: .8125rem;
+      color: #6b6456; font-family: monospace;
+    }
+    .terminal-body { padding: 24px; font-family: monospace; font-size: .9375rem; }
+    .line { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 12px; min-height: 1.4em; }
+    .prompt { color: var(--accent); flex-shrink: 0; }
+    .cmd { color: #d4c9b8; }
+    .output { color: #4ade80; display: flex; align-items: center; gap: 8px; }
+    .cursor {
+      display: inline-block; width: 2px; height: 1.1em;
+      background: var(--accent); vertical-align: middle;
+      animation: blink .8s step-end infinite;
+    }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+    .url-chip {
+      background: color-mix(in srgb, var(--accent) 15%, transparent);
+      color: var(--accent); padding: 2px 8px; border-radius: 4px;
+      font-size: .875rem;
+    }
+
+    /* ── Footer ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 40px 0;
+      text-align: center;
+    }
+    .footer-logo {
+      font-size: 1.5rem; font-weight: 900; color: var(--accent);
+      letter-spacing: -.03em; margin-bottom: 12px;
+    }
+    .footer-meta { font-size: .8125rem; color: var(--text-muted); }
+    .footer-tag {
+      display: inline-block; margin-top: 16px;
+      background: color-mix(in srgb, var(--accent) 10%, transparent);
+      color: var(--accent); font-size: .75rem; font-weight: 600;
+      padding: 4px 12px; border-radius: 999px;
+      border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
+    }
+
+    /* ── Divider ── */
+    .divider {
+      height: 1px; background: var(--border); margin: 0;
+    }
+
+    /* ── Scroll fade utility ── */
+    .fade-on-scroll {
+      opacity: 0; transform: translateY(20px);
+      transition: opacity .5s ease, transform .5s ease;
+    }
+    .fade-on-scroll.visible {
+      opacity: 1; transform: translateY(0);
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<header>
+  <div class="container">
+    <div class="inner">
+      <span class="logo">pagebox</span>
+      <button class="theme-btn" id="themeToggle">🌙</button>
+    </div>
+  </div>
+</header>
+
+<!-- ── Hero ── -->
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-grid"></div>
+  <div class="container" style="position:relative">
+    <div class="hero-eyebrow">HTML Sharing Service</div>
+    <h1>
+      HTML を、<br>
+      <span class="gradient-text">URL に。</span>
+    </h1>
+    <p class="hero-sub">
+      自己完結した HTML ファイルをドラッグするだけで、<br>
+      すぐに共有できる URL を発行します。
+    </p>
+    <div class="badge-row">
+      <div class="badge">⚡ <span>即時発行</span></div>
+      <div class="badge">📦 <span>最大 10MB</span></div>
+      <div class="badge">🔒 <span>認証付き管理</span></div>
+      <div class="badge">🌙 <span>ダークモード</span></div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ── How it works ── -->
+<section>
+  <div class="container">
+    <p class="section-label">How it works</p>
+    <h2 class="section-title">3ステップで共有</h2>
+    <p class="section-desc">複雑な設定は不要。ファイルを選んでドロップするだけです。</p>
+
+    <div class="steps" id="steps">
+      <div class="step-card">
+        <span class="step-icon">📄</span>
+        <p class="step-num">Step 1</p>
+        <p class="step-title">HTML を用意</p>
+        <p class="step-desc">自己完結した .html ファイルをひとつ用意するだけ。</p>
+      </div>
+
+      <div class="arrow">
+        <svg width="40" height="24" viewBox="0 0 40 24">
+          <path class="arrow-line" d="M0 12 H32 M24 4 L40 12 L24 20" />
+        </svg>
+      </div>
+
+      <div class="step-card">
+        <span class="step-icon">⚡</span>
+        <p class="step-num">Step 2</p>
+        <p class="step-title">ドロップして送信</p>
+        <p class="step-desc">pagebox にログインして、ファイルをドラッグ＆ドロップ。</p>
+      </div>
+
+      <div class="arrow">
+        <svg width="40" height="24" viewBox="0 0 40 24">
+          <path class="arrow-line" d="M0 12 H32 M24 4 L40 12 L24 20" style="animation-delay:.7s"/>
+        </svg>
+      </div>
+
+      <div class="step-card">
+        <span class="step-icon">🔗</span>
+        <p class="step-num">Step 3</p>
+        <p class="step-title">URL を共有</p>
+        <p class="step-desc">発行された URL をコピーして誰にでも送れます。ログイン不要で閲覧可能。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ── Features ── -->
+<section class="features-bg">
+  <div class="container">
+    <p class="section-label">Features</p>
+    <h2 class="section-title">シンプルに、強く。</h2>
+    <p class="section-desc">必要な機能だけを、丁寧に。</p>
+
+    <div class="features-grid" id="features">
+      <div class="feature-card">
+        <div class="feature-icon">🔓</div>
+        <div class="feature-title">ログイン不要で閲覧</div>
+        <div class="feature-desc">共有 URL はアカウント不要。受け取った人はすぐ開けます。</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🚀</div>
+        <div class="feature-title">Cloudflare Workers</div>
+        <div class="feature-desc">エッジで動作。世界中どこからでも高速アクセス。</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🗂️</div>
+        <div class="feature-title">マイスペース管理</div>
+        <div class="feature-desc">アップロード済みファイルを一覧で管理・削除できます。</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🌙</div>
+        <div class="feature-title">ダークモード対応</div>
+        <div class="feature-desc">OS 設定に自動追従。手動切替ボタンも完備。</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ── Terminal demo ── -->
+<section>
+  <div class="container">
+    <p class="section-label">Demo</p>
+    <h2 class="section-title">使ってみると</h2>
+    <p class="section-desc">体験はとてもシンプルです。</p>
+
+    <div class="terminal-wrap fade-on-scroll" id="terminal-wrap">
+      <div class="terminal">
+        <div class="terminal-bar">
+          <div class="dot dot-r"></div>
+          <div class="dot dot-y"></div>
+          <div class="dot dot-g"></div>
+          <span class="terminal-title">pagebox session</span>
+        </div>
+        <div class="terminal-body" id="terminal-body">
+          <div class="line" id="line0">
+            <span class="prompt">›</span>
+            <span class="cmd" id="cmd0"></span>
+            <span class="cursor" id="cursor0"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Footer ── -->
+<footer>
+  <div class="container">
+    <div class="footer-logo">pagebox</div>
+    <p class="footer-meta">HTML を、ドラッグするだけで共有する。</p>
+    <div class="footer-tag">✨ このページは pagebox でホストされています</div>
+  </div>
+</footer>
+
+<script>
+  // ── Theme toggle ──────────────────────────────
+  const root = document.documentElement;
+  const btn = document.getElementById('themeToggle');
+  const saved = localStorage.getItem('pb-theme');
+  if (saved) { root.setAttribute('data-theme', saved); btn.textContent = saved === 'dark' ? '☀️' : '🌙'; }
+  btn.addEventListener('click', () => {
+    const cur = root.getAttribute('data-theme');
+    const next = (cur === 'dark') ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    localStorage.setItem('pb-theme', next);
+    btn.textContent = next === 'dark' ? '☀️' : '🌙';
+  });
+
+  // ── IntersectionObserver for scroll animations ──
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (!e.isIntersecting) return;
+      const el = e.target;
+      if (el.id === 'steps') {
+        el.querySelectorAll('.step-card').forEach(c => c.classList.add('visible'));
+      } else if (el.id === 'features') {
+        el.querySelectorAll('.feature-card').forEach((c, i) => {
+          setTimeout(() => c.classList.add('visible'), i * 80);
+        });
+      } else {
+        el.classList.add('visible');
+      }
+      io.unobserve(el);
+    });
+  }, { threshold: 0.15 });
+
+  document.querySelectorAll('#steps, #features, .fade-on-scroll').forEach(el => io.observe(el));
+
+  // ── Typewriter terminal ───────────────────────
+  const lines = [
+    { type: 'cmd', text: 'pagebox.iodine2.net にアクセス' },
+    { type: 'cmd', text: 'GitHub でログイン' },
+    { type: 'cmd', text: 'demo.html をドラッグ&ドロップ' },
+    { type: 'output', text: '✓ アップロード完了！URL が発行されました', url: 'https://pagebox.iodine2.net/d/x7k3m9qp2r1n' },
+  ];
+
+  const body = document.getElementById('terminal-body');
+  let lineIdx = 0, charIdx = 0, typing = false;
+
+  function createLine(idx) {
+    const line = document.createElement('div');
+    line.className = 'line';
+    line.id = `tline${idx}`;
+    if (lines[idx].type === 'output') {
+      line.innerHTML = `<span class="output"></span>`;
+    } else {
+      line.innerHTML = `<span class="prompt" style="color:var(--accent)">›</span><span class="cmd" id="tcmd${idx}"></span><span class="cursor" id="tcursor${idx}"></span>`;
+    }
+    body.appendChild(line);
+    return line;
+  }
+
+  function typeNextLine() {
+    if (lineIdx >= lines.length) return;
+    const data = lines[lineIdx];
+    const line = createLine(lineIdx);
+
+    if (data.type === 'output') {
+      const out = line.querySelector('.output');
+      let i = 0;
+      const interval = setInterval(() => {
+        out.textContent = data.text.slice(0, ++i);
+        if (i >= data.text.length) {
+          clearInterval(interval);
+          if (data.url) {
+            const chip = document.createElement('span');
+            chip.className = 'url-chip';
+            chip.textContent = data.url;
+            out.after(chip);
+          }
+          lineIdx++;
+        }
+      }, 25);
+    } else {
+      const cmdEl = document.getElementById(`tcmd${lineIdx}`);
+      const curEl = document.getElementById(`tcursor${lineIdx}`);
+      let i = 0;
+      const interval = setInterval(() => {
+        cmdEl.textContent = data.text.slice(0, ++i);
+        if (i >= data.text.length) {
+          clearInterval(interval);
+          curEl.remove();
+          lineIdx++;
+          setTimeout(typeNextLine, 600);
+        }
+      }, 40);
+    }
+  }
+
+  // Start typing when terminal is visible
+  const termObs = new IntersectionObserver((entries) => {
+    if (entries[0].isIntersecting && lineIdx === 0) {
+      // Clear the placeholder line0
+      document.getElementById('line0').remove();
+      setTimeout(typeNextLine, 400);
+    }
+    termObs.disconnect();
+  }, { threshold: 0.3 });
+  termObs.observe(document.getElementById('terminal-wrap'));
+</script>
+</body>
+</html>
