@@ -1,0 +1,9 @@
+node_modules
+data/
+dist/
+*.db
+.env.cloudflare
+*.db-wal
+*.db-shm
+.git
+docs
