@@ -1,0 +1,11 @@
+services:
+  app:
+    build: { context: ../.., dockerfile: deploy/docker/Dockerfile }
+    ports: ["3000:3000"]
+    volumes: ["pagebox-data:/data"]
+    environment:
+      PORT: "3000"
+      PAGEBOX_DATA_DIR: /data
+      STORAGE_DRIVER: fs
+      DB_DRIVER: sqlite
+volumes: { pagebox-data: {} }

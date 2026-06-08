@@ -1,0 +1,29 @@
+name = "pagebox"
+main = "../../src/entries/worker.ts"
+# account_id は CLOUDFLARE_ACCOUNT_ID 環境変数から自動取得（wrangler.toml に直書きしない）
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+routes = [
+  { pattern = "pagebox.iodine2.net", custom_domain = true }
+]
+
+# クライアント JS・CSS を Workers Assets として配信
+# `bun run build:worker` で dist/static/ に生成してからデプロイ
+[assets]
+directory = "../../dist"
+binding = "ASSETS"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "pagebox"
+database_id = "a7f4472c-ec7e-4108-b431-e8223a744803"
+migrations_dir = "migrations"
+
+[vars]
+ACCESS_TEAM_DOMAIN = "i2net.cloudflareaccess.com"
+ACCESS_AUD = "4562908ad77043dc3e5b899bf2e0b28bd5efdc11c9faec799466a3cb566e61d6"
+
+[[r2_buckets]]
+binding = "STORAGE"
+bucket_name = "pagebox-blobs"

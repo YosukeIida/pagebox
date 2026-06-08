@@ -1,0 +1,43 @@
+# .env を自動ロード（存在しなくてもエラーにしない）
+-include .env.cloudflare
+export
+
+BUN   = docker run --rm -v $(PWD):/app -w /app oven/bun:1
+# wrangler は Bun と互換性の問題があるため Node.js で実行する
+NODE_CF = docker run --rm -v $(PWD):/app -w /app -e CLOUDFLARE_API_TOKEN -e CLOUDFLARE_ACCOUNT_ID -e WRANGLER_SEND_METRICS=false node:20-slim
+
+# ── ローカル開発 ──────────────────────────────────────────
+dev:
+	docker compose up
+
+dev-down:
+	docker compose down
+
+typecheck:
+	$(BUN) bun run typecheck
+
+# ── Cloudflare 初回セットアップ ──────────────────────────
+cf-access-setup:
+	$(NODE_CF) node scripts/setup-cloudflare-access.mjs
+
+cf-d1-create:
+	$(NODE_CF) npx --yes wrangler@4 d1 create pagebox
+
+cf-r2-create:
+	$(NODE_CF) npx --yes wrangler@4 r2 bucket create pagebox-blobs
+
+cf-secret-aud:
+	$(NODE_CF) sh -c "echo '$$ACCESS_AUD' | npx --yes wrangler@4 secret put ACCESS_AUD --config deploy/cloudflare/wrangler.toml"
+
+cf-d1-migrate:
+	$(NODE_CF) npx --yes wrangler@4 d1 migrations apply pagebox --remote --config deploy/cloudflare/wrangler.toml
+
+# ── Cloudflare デプロイ ───────────────────────────────────
+deploy:
+	docker run --rm -v $(PWD):/app -w /app -v pagebox-bun-cache:/root/.bun oven/bun:1 bun run build:worker
+	$(NODE_CF) npx --yes wrangler@4 deploy --config deploy/cloudflare/wrangler.toml
+
+cf-dev:
+	$(NODE_CF) sh -c "npx --yes wrangler@4 dev --config deploy/cloudflare/wrangler.toml"
+
+.PHONY: dev dev-down typecheck cf-d1-create cf-r2-create cf-d1-migrate deploy cf-dev
