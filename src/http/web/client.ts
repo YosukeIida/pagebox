@@ -51,7 +51,7 @@
       const res = await fetch("/api/upload", { method: "POST", body: form });
       const data = await res.json();
       if (res.status === 201) {
-        const url = location.origin + data.url;
+        const url = data.url;
         showResult(url);
         location.reload();
       } else {

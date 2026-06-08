@@ -5,7 +5,8 @@ compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 
 routes = [
-  { pattern = "pagebox.iodine2.net", custom_domain = true }
+  { pattern = "pagebox.iodine2.net", custom_domain = true },
+  { pattern = "view.pagebox.iodine2.net", custom_domain = true }
 ]
 
 # クライアント JS・CSS を Workers Assets として配信
