@@ -26,7 +26,7 @@ export function apiRoutes(deps: AppDeps): Hono {
         { storage: deps.storage, repo: deps.repo },
         { fileName: file.name, contentType: file.type || "text/html", bytes, groupId, uploadedBy: userId },
       );
-      return c.json({ slug: meta.slug, url: `/d/${meta.slug}`, title: meta.title }, 201);
+      return c.json({ slug: meta.slug, url: `https://view.pagebox.iodine2.net/${meta.slug}`, title: meta.title }, 201);
     } catch (e) {
       if (e instanceof ValidationError) {
         return c.json({ error: e.message }, 400);

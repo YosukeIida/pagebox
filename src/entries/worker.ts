@@ -7,6 +7,7 @@ import { createR2Storage } from "../adapters/storage/r2";
 import type { R2Bkt } from "../adapters/storage/r2";
 import { createCloudflareAccessAuth } from "../adapters/auth/cloudflare-access";
 import { createApp } from "../http/app";
+import { getDocument } from "../core/usecases/get-document";
 
 interface Env {
   DB: D1Db;
@@ -19,6 +20,22 @@ interface Env {
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
+
+    // view.pagebox.iodine2.net → XSS 隔離済みビューア（認証不要）
+    if (url.hostname.startsWith("view.")) {
+      if (url.pathname.startsWith("/static/")) {
+        return env.ASSETS.fetch(request);
+      }
+      const slug = url.pathname.slice(1).split("/")[0]; // "/abc123" → "abc123"
+      if (!slug) return new Response("Not found", { status: 404 });
+      const repo = createD1Repository(env.DB);
+      const storage = createR2Storage(env.STORAGE);
+      const r = await getDocument({ storage, repo }, slug);
+      if (!r) return new Response("Not found", { status: 404 });
+      return new Response(r.data.buffer as ArrayBuffer, {
+        headers: { "Content-Type": `${r.meta.contentType}; charset=utf-8` },
+      });
+    }
 
     // 静的アセットは Workers Assets にオフロード（Bun.file / Bun.Transpiler 不要）
     if (url.pathname.startsWith("/static/")) {

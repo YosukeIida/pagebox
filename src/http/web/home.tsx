@@ -67,10 +67,10 @@ export function HomePage(props: { documents: DocumentMeta[]; email: string }) {
                   </div>
                 </div>
                 <div class="doc-actions">
-                  <a class="btn btn-secondary" href={`/d/${doc.slug}`} target="_blank" rel="noopener noreferrer">
+                  <a class="btn btn-secondary" href={`https://view.pagebox.iodine2.net/${doc.slug}`} target="_blank" rel="noopener noreferrer">
                     開く
                   </a>
-                  <button class="btn btn-secondary" data-copy-url={`/d/${doc.slug}`}>
+                  <button class="btn btn-secondary" data-copy-url={`https://view.pagebox.iodine2.net/${doc.slug}`}>
                     URLコピー
                   </button>
                   <button class="btn btn-danger" data-delete-slug={doc.slug}>
