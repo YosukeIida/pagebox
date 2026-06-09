@@ -31,12 +31,12 @@ binding = "OG_CACHE_KV"
 id = "098954f448404ba68b3877a08489613c"
 
 # レート制限（Cloudflare Workers Rate Limiting API）
-# 原子性・スライディングウィンドウを組み込みで保証
-[[unsafe.bindings]]
+# period は 10 または 60 秒のみサポート
+# 5回/分 = バースト抑止として十分かつ通常利用を妨げない水準
+[[ratelimits]]
 name = "RATE_LIMITER"
-type = "ratelimit"
-namespace_id = "1"
-simple = { limit = 20, period = 3600 }
+namespace_id = "10001"
+simple = { limit = 5, period = 60 }
 
 [[r2_buckets]]
 binding = "STORAGE"

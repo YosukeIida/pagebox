@@ -11,11 +11,12 @@ export function uploadRateLimit(limiter?: RateLimiter): MiddlewareHandler {
     if (!limiter) return next(); // ローカル開発時はスキップ（binding 未設定）
 
     const ip = c.req.header("CF-Connecting-IP") ?? "unknown";
-    const { success } = await limiter.limit({ key: ip });
+    // pagebox 固有の prefix でキー衝突を防ぐ
+    const { success } = await limiter.limit({ key: `pagebox:upload:${ip}` });
 
     if (!success) {
       return c.json(
-        { error: "アップロード回数の上限に達しました。しばらく経ってから再試行してください。" },
+        { error: "アップロード回数の上限（5回/分）に達しました。しばらく経ってから再試行してください。" },
         429,
       );
     }
