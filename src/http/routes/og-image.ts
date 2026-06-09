@@ -15,18 +15,22 @@ export interface OgImageDeps {
 
 const CACHE_TTL = 60 * 60 * 24 * 7; // 7 days
 const WASM_URL = "https://unpkg.com/@resvg/resvg-wasm@2.6.2/index_bg.wasm";
-const FONT_URL = "https://cdn.jsdelivr.net/npm/@fontsource/inter@5/files/inter-latin-900-normal.woff2";
+const FONT_LATIN_URL = "https://cdn.jsdelivr.net/npm/@fontsource/inter@5/files/inter-latin-900-normal.woff2";
+// Noto Sans JP — CJK coverage for Japanese titles
+const FONT_JP_URL = "https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-jp@5/files/noto-sans-jp-japanese-900-normal.woff2";
 
-type Resources = { fontBuf: Uint8Array };
+type Resources = { fontBufs: Uint8Array[] };
 let resourcesPromise: Promise<Resources> | null = null;
 
 function getResources(): Promise<Resources> {
   if (!resourcesPromise) {
     resourcesPromise = (async (): Promise<Resources> => {
       await initWasm(fetch(WASM_URL));
-      const fontRes = await fetch(FONT_URL);
-      const fontBuf = new Uint8Array(await fontRes.arrayBuffer());
-      return { fontBuf };
+      const [latin, jp] = await Promise.all([
+        fetch(FONT_LATIN_URL).then(r => r.arrayBuffer()).then(b => new Uint8Array(b)),
+        fetch(FONT_JP_URL).then(r => r.arrayBuffer()).then(b => new Uint8Array(b)).catch(() => null),
+      ]);
+      return { fontBufs: jp ? [latin, jp] : [latin] };
     })().catch((e) => {
       resourcesPromise = null;
       throw e;
@@ -97,11 +101,11 @@ export function ogImageRoute(deps: OgImageDeps): Hono {
     const meta = await deps.repo.findBySlug(slug);
     if (!meta) return c.notFound();
 
-    const { fontBuf } = await getResources();
+    const { fontBufs } = await getResources();
     const svg = buildSvg(meta.title, meta.description);
     const pngBuf = new Resvg(svg, {
       fitTo: { mode: "width", value: 1200 },
-      font: { fontBuffers: [fontBuf], defaultFontFamily: "Inter" },
+      font: { fontBuffers: fontBufs, defaultFontFamily: "Inter" },
     }).render().asPng().buffer as ArrayBuffer;
 
     await deps.ogCache.put(slug, pngBuf, { expirationTtl: CACHE_TTL });
