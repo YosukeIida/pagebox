@@ -22,14 +22,17 @@ export function extractDescription(html: string): string | null {
     ?? html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']description["']/i);
   if (metaMatch) return metaMatch[1].trim().slice(0, 200);
 
-  // 2. 最初の <p>...</p> テキスト（タグ除去・200字）
-  const pMatch = html.match(/<p[^>]*>([\s\S]*?)<\/p>/i);
-  if (pMatch) {
-    const text = pMatch[1].replace(/<[^>]+>/g, "").trim();
-    if (text) return text.slice(0, 200);
+  // 2. <p> テキストを先頭から連結して 200字まで
+  const pPattern = /<p[^>]*>([\s\S]*?)<\/p>/gi;
+  let combined = "";
+  let m: RegExpExecArray | null;
+  while ((m = pPattern.exec(html)) !== null) {
+    const text = m[1].replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+    if (!text) continue;
+    combined = combined ? combined + " " + text : text;
+    if (combined.length >= 200) break;
   }
-
-  return null;
+  return combined ? combined.slice(0, 200) : null;
 }
 
 export function deriveTitle(html: string, fallbackName: string): string {
