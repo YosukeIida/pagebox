@@ -57,17 +57,14 @@ function esc(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
-function buildSvg(title: string, description: string | null): string {
-  const W = 1200, H = 630, P = 80, LH = 84;
-  const lines = wrapTitle(title, 22);
-  const titleY = lines.length === 1 ? H / 2 - 10 : H / 2 - 52;
+function buildSvg(title: string): string {
+  const W = 1200, H = 630, P = 80, FONT_SIZE = 72, LH = 96;
+  const lines = wrapTitle(title, 20);
+  // タイトルを上寄りに配置（1行なら y=280、2行なら y=220 から開始）
+  const titleY = lines.length === 1 ? 280 : 220;
   const titleElems = lines
-    .map((l, i) => `<text x="${P}" y="${titleY + i * LH}" font-family="Noto Sans JP" font-size="64" font-weight="900" fill="#1a1a1a">${esc(l)}</text>`)
+    .map((l, i) => `<text x="${P}" y="${titleY + i * LH}" font-family="Noto Sans JP" font-size="${FONT_SIZE}" font-weight="900" fill="#1a1a1a">${esc(l)}</text>`)
     .join("\n  ");
-  const descY = titleY + lines.length * LH + 28;
-  const descElem = description
-    ? `<text x="${P}" y="${descY}" font-family="Noto Sans JP" font-size="28" font-weight="400" fill="#6b6456">${esc(description.slice(0, 100))}</text>`
-    : "";
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">
   <defs>
     <pattern id="g" width="20" height="20" patternUnits="userSpaceOnUse">
@@ -77,9 +74,7 @@ function buildSvg(title: string, description: string | null): string {
   <rect width="${W}" height="${H}" fill="#f8f6f1"/>
   <rect width="${W}" height="${H}" fill="url(#g)" opacity="0.4"/>
   ${titleElems}
-  ${descElem}
   <text x="${W - P}" y="${H - 52}" font-family="Noto Sans JP" font-size="48" font-weight="900" fill="#e07b39" text-anchor="end">pagebox</text>
-  <text x="${W - P}" y="${H - 16}" font-family="Noto Sans JP" font-size="20" font-weight="400" fill="#6b6456" text-anchor="end">pagebox.iodine2.net</text>
 </svg>`;
 }
 
@@ -107,7 +102,7 @@ export function ogImageRoute(deps: OgImageDeps): Hono {
     if (!meta) return c.notFound();
 
     const { fontBuffers } = await getResources();
-    const svg = buildSvg(meta.title, meta.description);
+    const svg = buildSvg(meta.title);
     const pngBuf = new Resvg(svg, {
       fitTo: { mode: "width", value: 1200 },
       font: { fontBuffers, defaultFontFamily: "Noto Sans JP" },
