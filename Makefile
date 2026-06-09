@@ -35,6 +35,9 @@ cf-kv-create:
 cf-d1-migrate:
 	$(NODE_CF) npx --yes wrangler@4 d1 migrations apply pagebox --remote --config deploy/cloudflare/wrangler.toml
 
+backfill-description:
+	$(NODE_CF) node scripts/backfill-description.mjs
+
 # ── Cloudflare デプロイ ───────────────────────────────────
 deploy:
 	docker run --rm -v $(PWD):/app -w /app -v pagebox-bun-cache:/root/.bun oven/bun:1 bun run build:worker
@@ -43,4 +46,4 @@ deploy:
 cf-dev:
 	$(NODE_CF) sh -c "npx --yes wrangler@4 dev --config deploy/cloudflare/wrangler.toml"
 
-.PHONY: dev dev-down typecheck cf-d1-create cf-r2-create cf-kv-create cf-d1-migrate deploy cf-dev
+.PHONY: dev dev-down typecheck cf-d1-create cf-r2-create cf-kv-create cf-d1-migrate backfill-description deploy cf-dev
