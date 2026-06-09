@@ -12,8 +12,8 @@
 |---|---|---|---|
 | 1 | サブドメイン分離（XSS 対策） | ✅ 完了 | merged |
 | 2 | レート制限（Cloudflare Rate Limiting API） | ✅ 完了 | PR #1 merged |
-| 3 | OGP + Description 抽出・注入 | 🔜 未着手 | — |
-| 4 | 動的 OGP 画像生成（Zenn スタイル） | 🔜 未着手 | — |
+| 3 | OGP + Description 抽出・注入 | ✅ 完了 | PR #2 merged |
+| 4 | 動的 OGP 画像生成（Zenn スタイル） | ✅ 完了 | PR #3 merged |
 
 ---
 
@@ -35,7 +35,7 @@
 
 ---
 
-## 🔜 Feature 3: OGP + Description 抽出・注入
+## ✅ Feature 3: OGP + Description 抽出・注入（完了）
 
 ### Context
 `view.pagebox.iodine2.net/:slug` の URL を SNS（Slack/Twitter/Discord）に貼ったとき、タイトル・説明文・OGP 画像がプレビュー表示されるようにする。
@@ -115,7 +115,7 @@ curl https://view.pagebox.iodine2.net/:slug | grep "og:"
 
 ---
 
-## 🔜 Feature 4: 動的 OGP 画像生成（Zenn スタイル）
+## ✅ Feature 4: 動的 OGP 画像生成（Zenn スタイル）（完了）
 
 ### Context
 SNS シェア時に画像プレビューが表示されるよう、`GET /d/:slug/og.png` でタイトル・説明文入りのカード画像を動的生成する。
