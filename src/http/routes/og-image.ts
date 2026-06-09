@@ -44,13 +44,47 @@ function getResources(): Promise<Resources> {
   return resourcesPromise;
 }
 
-function wrapTitle(text: string, maxChars: number): string[] {
-  if (text.length <= maxChars) return [text];
-  const spaceIdx = text.lastIndexOf(" ", maxChars);
-  const cut = spaceIdx > maxChars * 0.5 ? spaceIdx : maxChars;
-  const rest = text.slice(cut).trim();
-  const second = rest.length > maxChars ? rest.slice(0, maxChars - 1) + "…" : rest;
-  return [text.slice(0, cut), second];
+// 文字幅の概算（em 単位）: CJK=1.0, スペース=0.3, その他(Latin/数字)=0.55
+function charEm(ch: string): number {
+  const cp = ch.codePointAt(0) ?? 0;
+  if ((cp >= 0x3000 && cp <= 0x9fff) || (cp >= 0xff00 && cp <= 0xffef)) return 1.0;
+  if (ch === " ") return 0.3;
+  return 0.55;
+}
+
+function wrapTitle(text: string, maxWidth: number, fontSize: number): string[] {
+  const maxEm = maxWidth / fontSize;
+
+  let em = 0;
+  for (const ch of text) em += charEm(ch);
+  if (em <= maxEm) return [text];
+
+  // 1行目: maxEm に収まるだけ詰め、Latin はスペースで折り返しを優先
+  let line1 = "", em1 = 0;
+  for (const ch of text) {
+    const ce = charEm(ch);
+    if (em1 + ce > maxEm) break;
+    line1 += ch;
+    em1 += ce;
+  }
+  const si = line1.lastIndexOf(" ");
+  if (si > line1.length * 0.5) line1 = line1.slice(0, si);
+
+  const rest = text.slice(line1.length).trimStart();
+
+  // 2行目: "…" の幅(≈0.6em)を確保しながら詰める
+  const ellEm = 0.6;
+  let line2 = "", em2 = 0;
+  const chars = [...rest];
+  for (let i = 0; i < chars.length; i++) {
+    const ce = charEm(chars[i]);
+    if (em2 + ce + (i < chars.length - 1 ? ellEm : 0) > maxEm) break;
+    line2 += chars[i];
+    em2 += ce;
+  }
+  if (line2.length < rest.length) line2 += "…";
+
+  return [line1, line2];
 }
 
 function esc(s: string): string {
@@ -59,7 +93,7 @@ function esc(s: string): string {
 
 function buildSvg(title: string): string {
   const W = 1200, H = 630, P = 80, FONT_SIZE = 72, LH = 96;
-  const lines = wrapTitle(title, 20);
+  const lines = wrapTitle(title, W - P * 2, FONT_SIZE);
   // タイトルを上寄りに配置（1行なら y=280、2行なら y=220 から開始）
   const titleY = lines.length === 1 ? 280 : 220;
   const titleElems = lines
