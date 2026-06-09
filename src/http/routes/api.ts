@@ -14,7 +14,7 @@ export function apiRoutes(deps: AppDeps): Hono {
   const app = new Hono<Vars>();
   app.use("/*", requireAuth(deps));
 
-  app.post("/upload", uploadRateLimit(deps.kvRateLimit) as any, async (c) => {
+  app.post("/upload", uploadRateLimit(deps.rateLimiter) as any, async (c) => {
     const { groupId, userId } = c.get("authContext");
     const form = await c.req.formData();
     const file = form.get("file");

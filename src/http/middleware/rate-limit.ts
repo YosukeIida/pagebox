@@ -1,29 +1,25 @@
 import type { MiddlewareHandler } from "hono";
 
-interface KVNamespace {
-  get(key: string): Promise<string | null>;
-  put(key: string, value: string, options?: { expirationTtl?: number }): Promise<void>;
+// Cloudflare Workers Rate Limiting API
+// 原子性・スライディングウィンドウを組み込みで保証する
+export interface RateLimiter {
+  limit(options: { key: string }): Promise<{ success: boolean }>;
 }
 
-export function uploadRateLimit(kv: KVNamespace | undefined, limit = 20): MiddlewareHandler {
+export function uploadRateLimit(limiter?: RateLimiter): MiddlewareHandler {
   return async (c, next) => {
-    if (!kv) return next(); // ローカル開発時はスキップ
+    if (!limiter) return next(); // ローカル開発時はスキップ（binding 未設定）
 
     const ip = c.req.header("CF-Connecting-IP") ?? "unknown";
-    const hour = Math.floor(Date.now() / 3_600_000);
-    const key = `upload:${ip}:${hour}`;
+    const { success } = await limiter.limit({ key: ip });
 
-    const raw = await kv.get(key);
-    const count = raw ? (JSON.parse(raw) as { count: number }).count : 0;
-
-    if (count >= limit) {
+    if (!success) {
       return c.json(
-        { error: "アップロード回数の上限に達しました。1時間後に再試行してください。" },
+        { error: "アップロード回数の上限に達しました。しばらく経ってから再試行してください。" },
         429,
       );
     }
 
-    await kv.put(key, JSON.stringify({ count: count + 1 }), { expirationTtl: 3600 });
     return next();
   };
 }

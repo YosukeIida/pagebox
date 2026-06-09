@@ -25,9 +25,18 @@ migrations_dir = "migrations"
 ACCESS_TEAM_DOMAIN = "i2net.cloudflareaccess.com"
 ACCESS_AUD = "4562908ad77043dc3e5b899bf2e0b28bd5efdc11c9faec799466a3cb566e61d6"
 
+# OGP 画像キャッシュ用 KV（Feature 4 で使用）
 [[kv_namespaces]]
-binding = "RATE_LIMIT_KV"
+binding = "OG_CACHE_KV"
 id = "098954f448404ba68b3877a08489613c"
+
+# レート制限（Cloudflare Workers Rate Limiting API）
+# 原子性・スライディングウィンドウを組み込みで保証
+[[unsafe.bindings]]
+name = "RATE_LIMITER"
+type = "ratelimit"
+namespace_id = "1"
+simple = { limit = 20, period = 3600 }
 
 [[r2_buckets]]
 binding = "STORAGE"
