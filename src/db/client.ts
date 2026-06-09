@@ -30,6 +30,7 @@ export function createDb(path: string) {
   sqlite.exec(`CREATE TABLE IF NOT EXISTS documents (
     slug          TEXT PRIMARY KEY,
     title         TEXT NOT NULL,
+    description   TEXT,
     original_name TEXT NOT NULL,
     size          INTEGER NOT NULL,
     content_type  TEXT NOT NULL,
@@ -37,5 +38,7 @@ export function createDb(path: string) {
     group_id      TEXT NOT NULL REFERENCES groups(id),
     uploaded_by   TEXT NOT NULL REFERENCES users(id)
   );`);
+  // 既存ボリュームに description カラムがない場合に追加（SQLite は IF NOT EXISTS 非対応）
+  try { sqlite.exec(`ALTER TABLE documents ADD COLUMN description TEXT;`); } catch { /* already exists */ }
   return drizzle(sqlite, { schema });
 }

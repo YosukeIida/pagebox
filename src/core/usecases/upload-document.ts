@@ -1,7 +1,7 @@
 import type { StoragePort } from "../../ports/storage";
 import type { DocumentRepository } from "../../ports/repository";
 import type { DocumentMeta } from "../document";
-import { isHtmlUpload, deriveTitle, MAX_UPLOAD_BYTES } from "../document";
+import { isHtmlUpload, deriveTitle, extractDescription, MAX_UPLOAD_BYTES } from "../document";
 import { generateSlug } from "../ids";
 import { ValidationError } from "../errors";
 
@@ -28,6 +28,7 @@ export async function uploadDocument(deps: UploadDeps, input: UploadInput): Prom
 
   const html = new TextDecoder().decode(input.bytes);
   const title = deriveTitle(html, input.fileName);
+  const description = extractDescription(html);
 
   let slug = "";
   for (let i = 0; i < 5; i++) {
@@ -45,6 +46,7 @@ export async function uploadDocument(deps: UploadDeps, input: UploadInput): Prom
   const meta: DocumentMeta = {
     slug,
     title,
+    description,
     originalName: input.fileName,
     size: input.bytes.byteLength,
     contentType: "text/html",

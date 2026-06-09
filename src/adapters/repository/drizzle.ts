@@ -10,6 +10,7 @@ function rowToMeta(row: Row): DocumentMeta {
   return {
     slug: row.slug,
     title: row.title,
+    description: row.description ?? null,
     originalName: row.originalName,
     size: row.size,
     contentType: row.contentType,
@@ -25,6 +26,7 @@ export function createDrizzleRepository(db: DB): DocumentRepository {
       await db.insert(documents).values({
         slug: doc.slug,
         title: doc.title,
+        description: doc.description,
         originalName: doc.originalName,
         size: doc.size,
         contentType: doc.contentType,
