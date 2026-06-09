@@ -30,6 +30,7 @@ export function createDb(path: string) {
   sqlite.exec(`CREATE TABLE IF NOT EXISTS documents (
     slug          TEXT PRIMARY KEY,
     title         TEXT NOT NULL,
+    description   TEXT,
     original_name TEXT NOT NULL,
     size          INTEGER NOT NULL,
     content_type  TEXT NOT NULL,

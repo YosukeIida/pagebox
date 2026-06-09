@@ -8,6 +8,22 @@ import type { R2Bkt } from "../adapters/storage/r2";
 import { createCloudflareAccessAuth } from "../adapters/auth/cloudflare-access";
 import { createApp } from "../http/app";
 import { getDocument } from "../core/usecases/get-document";
+import type { DocumentMeta } from "../core/document";
+
+function escapeAttr(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function injectOgpTags(html: string, meta: DocumentMeta): string {
+  const ogTags = `<meta property="og:title" content="${escapeAttr(meta.title)}" />
+<meta property="og:description" content="${escapeAttr(meta.description ?? "")}" />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://view.pagebox.iodine2.net/${escapeAttr(meta.slug)}" />
+<meta property="og:image" content="https://pagebox.iodine2.net/d/${escapeAttr(meta.slug)}/og.png" />
+<meta name="twitter:card" content="summary_large_image" />`;
+  if (/<\/head>/i.test(html)) return html.replace(/<\/head>/i, `${ogTags}\n</head>`);
+  return `<head>${ogTags}\n</head>\n` + html;
+}
 
 interface RateLimiter {
   limit(options: { key: string }): Promise<{ success: boolean }>;
@@ -37,7 +53,9 @@ export default {
       const storage = createR2Storage(env.STORAGE);
       const r = await getDocument({ storage, repo }, slug);
       if (!r) return new Response("Not found", { status: 404 });
-      return new Response(r.data.buffer as ArrayBuffer, {
+      const html = new TextDecoder().decode(r.data);
+      const injected = injectOgpTags(html, r.meta);
+      return new Response(injected, {
         headers: { "Content-Type": `${r.meta.contentType}; charset=utf-8` },
       });
     }

@@ -24,6 +24,7 @@ export const userGroups = sqliteTable("user_groups", {
 export const documents = sqliteTable("documents", {
   slug: text("slug").primaryKey(),
   title: text("title").notNull(),
+  description: text("description"),
   originalName: text("original_name").notNull(),
   size: integer("size").notNull(),
   contentType: text("content_type").notNull(),

@@ -15,6 +15,7 @@ export interface D1Db {
 type Row = {
   slug: string;
   title: string;
+  description: string | null;
   original_name: string;
   size: number;
   content_type: string;
@@ -27,6 +28,7 @@ function rowToMeta(row: Row): DocumentMeta {
   return {
     slug: row.slug,
     title: row.title,
+    description: row.description ?? null,
     originalName: row.original_name,
     size: row.size,
     contentType: row.content_type,
@@ -41,10 +43,10 @@ export function createD1Repository(db: D1Db): DocumentRepository {
     async save(doc: DocumentMeta): Promise<void> {
       await db
         .prepare(
-          `INSERT INTO documents (slug, title, original_name, size, content_type, created_at, group_id, uploaded_by)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO documents (slug, title, description, original_name, size, content_type, created_at, group_id, uploaded_by)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
-        .bind(doc.slug, doc.title, doc.originalName, doc.size, doc.contentType,
+        .bind(doc.slug, doc.title, doc.description, doc.originalName, doc.size, doc.contentType,
               doc.createdAt.getTime(), doc.groupId, doc.uploadedBy)
         .run();
     },
