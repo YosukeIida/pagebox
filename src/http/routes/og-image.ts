@@ -1,5 +1,8 @@
 import { Hono } from "hono";
 import { Resvg, initWasm } from "@resvg/resvg-wasm";
+// WASM must be statically imported and compiled at build time in CF Workers
+// (dynamic instantiation via fetch is disallowed by the embedder)
+import resvgWasm from "@resvg/resvg-wasm/index_bg.wasm";
 import type { DocumentRepository } from "../../ports/repository";
 
 export interface KVStore {
@@ -14,7 +17,6 @@ export interface OgImageDeps {
 }
 
 const CACHE_TTL = 60 * 60 * 24 * 7; // 7 days
-const WASM_URL = "https://unpkg.com/@resvg/resvg-wasm@2.6.2/index_bg.wasm";
 // Noto Sans JP covers both Latin and CJK — pinned version for reproducibility
 const FONT_900_URL = "https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-jp@5.2.8/files/noto-sans-jp-japanese-900-normal.woff2";
 const FONT_400_URL = "https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-jp@5.2.8/files/noto-sans-jp-japanese-400-normal.woff2";
@@ -25,7 +27,7 @@ let resourcesPromise: Promise<Resources> | null = null;
 function getResources(): Promise<Resources> {
   if (!resourcesPromise) {
     resourcesPromise = (async (): Promise<Resources> => {
-      await initWasm(fetch(WASM_URL));
+      await initWasm(resvgWasm);
       const [font900Res, font400Res] = await Promise.all([
         fetch(FONT_900_URL),
         fetch(FONT_400_URL),
@@ -117,7 +119,6 @@ export function ogImageRoute(deps: OgImageDeps): Hono {
 
   app.get("/:slug/og.png", async (c) => {
     const slug = c.req.param("slug");
-
     const cached = await deps.ogCache.get(slug, "arrayBuffer");
     if (cached) {
       // document が削除済みなら KV を掃除して 404

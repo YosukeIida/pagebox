@@ -41,3 +41,8 @@ simple = { limit = 5, period = 60 }
 [[r2_buckets]]
 binding = "STORAGE"
 bucket_name = "pagebox-blobs"
+
+# resvg-wasm をビルド時にバンドル（動的インスタンス化は Workers で禁止）
+[[rules]]
+type = "CompiledWasm"
+globs = ["**/*.wasm"]
