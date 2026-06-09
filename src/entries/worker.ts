@@ -17,7 +17,7 @@ function escapeAttr(s: string): string {
 function injectOgpTags(html: string, meta: DocumentMeta): string {
   // 既存の og: / twitter: タグを除去してから Pagebox のタグを先頭に注入
   const stripped = html.replace(
-    /<meta[^>]+(?:property="og:[^"]*"|name="twitter:[^"]*")[^>]*\/?>/gi,
+    /<meta[^>]+(?:property=["']og:[^"']*["']|name=["']twitter:[^"']*["'])[^>]*\/?>/gi,
     "",
   );
   const ogTags = `<meta property="og:title" content="${escapeAttr(meta.title)}" />
