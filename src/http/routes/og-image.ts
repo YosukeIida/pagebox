@@ -15,22 +15,27 @@ export interface OgImageDeps {
 
 const CACHE_TTL = 60 * 60 * 24 * 7; // 7 days
 const WASM_URL = "https://unpkg.com/@resvg/resvg-wasm@2.6.2/index_bg.wasm";
-const FONT_LATIN_URL = "https://cdn.jsdelivr.net/npm/@fontsource/inter@5/files/inter-latin-900-normal.woff2";
-// Noto Sans JP — CJK coverage for Japanese titles
-const FONT_JP_URL = "https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-jp@5/files/noto-sans-jp-japanese-900-normal.woff2";
+// Noto Sans JP covers both Latin and CJK — pinned version for reproducibility
+const FONT_900_URL = "https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-jp@5.2.8/files/noto-sans-jp-japanese-900-normal.woff2";
+const FONT_400_URL = "https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-jp@5.2.8/files/noto-sans-jp-japanese-400-normal.woff2";
 
-type Resources = { fontBufs: Uint8Array[] };
+type Resources = { fontBuffers: Uint8Array[] };
 let resourcesPromise: Promise<Resources> | null = null;
 
 function getResources(): Promise<Resources> {
   if (!resourcesPromise) {
     resourcesPromise = (async (): Promise<Resources> => {
       await initWasm(fetch(WASM_URL));
-      const [latin, jp] = await Promise.all([
-        fetch(FONT_LATIN_URL).then(r => r.arrayBuffer()).then(b => new Uint8Array(b)),
-        fetch(FONT_JP_URL).then(r => r.arrayBuffer()).then(b => new Uint8Array(b)).catch(() => null),
+      const [font900Res, font400Res] = await Promise.all([
+        fetch(FONT_900_URL),
+        fetch(FONT_400_URL),
       ]);
-      return { fontBufs: jp ? [latin, jp] : [latin] };
+      return {
+        fontBuffers: [
+          new Uint8Array(await font900Res.arrayBuffer()),
+          new Uint8Array(await font400Res.arrayBuffer()),
+        ],
+      };
     })().catch((e) => {
       resourcesPromise = null;
       throw e;
@@ -57,11 +62,11 @@ function buildSvg(title: string, description: string | null): string {
   const lines = wrapTitle(title, 22);
   const titleY = lines.length === 1 ? H / 2 - 10 : H / 2 - 52;
   const titleElems = lines
-    .map((l, i) => `<text x="${P}" y="${titleY + i * LH}" font-family="Inter" font-size="64" font-weight="900" fill="#1a1a1a">${esc(l)}</text>`)
+    .map((l, i) => `<text x="${P}" y="${titleY + i * LH}" font-family="Noto Sans JP" font-size="64" font-weight="900" fill="#1a1a1a">${esc(l)}</text>`)
     .join("\n  ");
   const descY = titleY + lines.length * LH + 28;
   const descElem = description
-    ? `<text x="${P}" y="${descY}" font-family="Inter" font-size="28" fill="#6b6456">${esc(description.slice(0, 100))}</text>`
+    ? `<text x="${P}" y="${descY}" font-family="Noto Sans JP" font-size="28" font-weight="400" fill="#6b6456">${esc(description.slice(0, 100))}</text>`
     : "";
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">
   <defs>
@@ -73,8 +78,8 @@ function buildSvg(title: string, description: string | null): string {
   <rect width="${W}" height="${H}" fill="url(#g)" opacity="0.4"/>
   ${titleElems}
   ${descElem}
-  <text x="${W - P}" y="${H - 52}" font-family="Inter" font-size="48" font-weight="900" fill="#e07b39" text-anchor="end">pagebox</text>
-  <text x="${W - P}" y="${H - 16}" font-family="Inter" font-size="20" fill="#6b6456" text-anchor="end">pagebox.iodine2.net</text>
+  <text x="${W - P}" y="${H - 52}" font-family="Noto Sans JP" font-size="48" font-weight="900" fill="#e07b39" text-anchor="end">pagebox</text>
+  <text x="${W - P}" y="${H - 16}" font-family="Noto Sans JP" font-size="20" font-weight="400" fill="#6b6456" text-anchor="end">pagebox.iodine2.net</text>
 </svg>`;
 }
 
@@ -101,11 +106,11 @@ export function ogImageRoute(deps: OgImageDeps): Hono {
     const meta = await deps.repo.findBySlug(slug);
     if (!meta) return c.notFound();
 
-    const { fontBufs } = await getResources();
+    const { fontBuffers } = await getResources();
     const svg = buildSvg(meta.title, meta.description);
     const pngBuf = new Resvg(svg, {
       fitTo: { mode: "width", value: 1200 },
-      font: { fontBuffers: fontBufs, defaultFontFamily: "Inter" },
+      font: { fontBuffers, defaultFontFamily: "Noto Sans JP" },
     }).render().asPng().buffer as ArrayBuffer;
 
     await deps.ogCache.put(slug, pngBuf, { expirationTtl: CACHE_TTL });
