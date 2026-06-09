@@ -98,7 +98,7 @@
 
     const copyUrl = target.closest("[data-copy-url]")?.getAttribute("data-copy-url");
     if (copyUrl) {
-      const url = location.origin + copyUrl;
+      const url = copyUrl;
       await navigator.clipboard.writeText(url);
       target.textContent = "コピー済み！";
       setTimeout(() => { target.textContent = "URLコピー"; }, 2000);
