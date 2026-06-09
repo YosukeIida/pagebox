@@ -1,7 +1,8 @@
 import type { MiddlewareHandler } from "hono";
 
-// Cloudflare Workers Rate Limiting API
-// 原子性・スライディングウィンドウを組み込みで保証する
+// Cloudflare Workers Rate Limiting API を使用
+// KV カウンタより信頼性が高いが、厳密なグローバル一貫性は保証されない点に注意
+// 参考: https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/
 export interface RateLimiter {
   limit(options: { key: string }): Promise<{ success: boolean }>;
 }
