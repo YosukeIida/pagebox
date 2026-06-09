@@ -3,12 +3,12 @@
 ## 参考
 
 - **レイアウト/コピー**: gp-pages（Goodpatch 社内ツール）— ヒーロー + 「ドラッグ&ドロップで完了」の3ステップ + アップロード済み一覧
-- **デザインシステム**: [nutmeg blog](https://blog.nutmeg.cloud/) — 白基調・余白広め・カードベース・アクセント1色・ダークモード対応のミニマルモダン
+- **デザインシステム**: ミニマルモダン — 白基調・余白広め・カードベース・アクセント1色・ダークモード対応
 
 ## 方向性
 
 - **白基調・広い余白・カード**（角丸・薄い境界）
-- **アクセントは黄橙色1色**（nutmeg 寄せ）。ボタン / リンク / ドロップゾーン強調のみに使う
+- **アクセントはオレンジ1色**（`#e07b39`）。ボタン / リンク / ドロップゾーン強調のみに使う
 - 本文はサンセリフ、見出しは大きめで視認性重視
 - **ダークモード対応**（`prefers-color-scheme` ＋ トグルで `[data-theme]` 上書き、`localStorage` 永続）
 - レスポンシブ（中央寄せ・最大幅で読みやすく）
@@ -19,13 +19,13 @@
 
 ```css
 :root{
-  --accent:#f59e0b;            /* 黄橙（nutmeg 寄せ） */
-  --bg:#ffffff; --surface:#f7f7f8; --fg:#1a1a1a; --muted:#6b7280;
+  --accent:#e07b39;            /* pagebox オレンジ */
+  --bg:#ffffff; --surface:#f8f6f1; --fg:#1a1a1a; --muted:#6b6456;
   --border:#e5e7eb; --radius:14px; --maxw:880px;
   --space:clamp(16px,4vw,40px);
 }
 :root[data-theme="dark"]{
-  --bg:#0d0f12; --surface:#16191e; --fg:#f3f4f6; --muted:#9ca3af; --border:#262b33;
+  --bg:#1a1814; --surface:#242220; --fg:#f3f4f6; --muted:#9ca3af; --border:#333;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){ /* dark と同値 */ }
@@ -41,4 +41,4 @@
 3. **アップロード結果** — 発行 URL を表示、コピーボタン
 4. **一覧** — アップロード済み HTML をカード表示（タイトル / URL / 作成日時 / サイズ / 開く・コピー・削除）
 
-閲覧画面（`/d/:slug`）は HTML をそのまま raw 配信（iframe 埋め込み可）。
+閲覧画面（`/d/:slug`）は `view.pagebox.iodine2.net/:slug` にリダイレクト（XSS 隔離サブドメイン）。OGP タグはリダイレクト先で注入済み。

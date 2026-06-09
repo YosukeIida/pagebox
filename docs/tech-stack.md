@@ -9,20 +9,31 @@
 | gp-pages（Goodpatch） | 非公開（Vercel + Supabase 推定） | UX・コピーの参考 |
 | jonesphillip/sharehtml | Cloudflare Workers + R2 + Durable Objects | コア・slug 生成・viewer URL の参照実装（fork ではなく設計を借用） |
 
-## 採用スタック（Phase 1 / MVP）
+## 現在のスタック（Phase 2 / Cloudflare Workers 本番稼働中）
+
+```
+Runtime:    Cloudflare Workers（本番） / Bun（ローカル開発）
+Framework:  Hono（API + フロント配信 + HTML 配信を1プロセスで兼任）
+Frontend:   Hono JSX(SSR) + 素 TS + プレーン CSS（フレームワーク無し）
+ORM:        Drizzle（bun:sqlite / D1 マルチドライバ）
+Storage:    Cloudflare R2（本番） / ローカル fs（開発）
+DB:         Cloudflare D1（本番） / SQLite（開発）
+Auth:       Cloudflare Access（GitHub / One-time PIN）
+OGP:        resvg-wasm + @fontsource/noto-sans-jp で動的 PNG 生成
+Deploy:     make deploy（bun build → wrangler deploy）
+```
+
+ローカル開発は **`docker compose up` だけ**で動く（外部依存ゼロ）。
+
+## Phase 1 MVP スタック（ローカル docker-compose）
 
 ```
 Runtime:    Bun
-Framework:  Hono（API + フロント配信 + HTML 配信を1プロセスで兼任）
-Frontend:   Hono JSX(SSR) + 素 TS + プレーン CSS（フレームワーク無し）
-ORM:        Drizzle（マルチドライバで DB ポータビリティ確保）
-Storage:    ローカルファイルシステム（マウント volume）※外部依存ゼロ
-DB:         SQLite ファイル（bun:sqlite + Drizzle）※volume 上の1ファイル
-Auth:       なし（MVP）。AuthPort だけ定義し anonymous で通す
-Deploy:     docker-compose（Phase1）→ Cloudflare(Phase2) → k8s(Phase3)
+Storage:    ローカルファイルシステム（マウント volume）
+DB:         SQLite ファイル（bun:sqlite + Drizzle）
+Auth:       なし（dev 固定メール）
+Deploy:     docker-compose
 ```
-
-**MVP の外部依存はゼロ**。`docker compose up` だけで動く。
 
 ## 当初案からの変更点と理由
 
@@ -32,7 +43,7 @@ Deploy:     docker-compose（Phase1）→ Cloudflare(Phase2) → k8s(Phase3)
 | ホスティング | Vercel | docker-compose →（CF →k8s） | Vercel は使わない。全部コンテナ化（将来 k8s Pod） |
 | ストレージ | Supabase Storage | fs（MVP）→ S3互換(R2/Garage/SeaweedFS) | 外部依存を避ける。MinIO は 2026/02 に OSS 終了のため不採用 |
 | DB | Supabase Postgres | SQLite(MVP)→ D1/Postgres | 軽量・外部依存ゼロ。Drizzle で後から差し替え |
-| 認証 | Supabase Auth | なし（MVP）→ 後フェーズで OAuth | まず認証なしで MVP を動かす |
+| 認証 | Supabase Auth | なし（MVP）→ Cloudflare Access（Phase2） | まず認証なしで MVP を動かし、Phase2 で Access を採用 |
 
 ## フェーズ別の差し替え（詳細）
 
@@ -40,4 +51,4 @@ Deploy:     docker-compose（Phase1）→ Cloudflare(Phase2) → k8s(Phase3)
 
 ## コスト
 
-Phase1 は自前コンテナのみ（追加コストなし）。Phase2 で Cloudflare（R2 egress 無料・Workers 無料枠）に寄せれば小規模利用は無料枠内の見込み。
+Phase1 は自前コンテナのみ（追加コストなし）。Phase2（現在）は Cloudflare（R2 egress 無料・Workers 有料枠）で稼働中。小規模利用は無料〜低コストで運用可能。

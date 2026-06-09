@@ -10,18 +10,18 @@
 
 ### Must（絶対欲しい）
 
-- [ ] HTML ファイルのアップロード → 固有 URL の発行
-- [ ] 認証（Google / GitHub OAuth）
-- [ ] Slack でのリンクプレビュー（OGP 対応）
-- [ ] アップロードした HTML 一覧ページ
+- [x] HTML ファイルのアップロード → 固有 URL の発行
+- [x] 認証（GitHub / One-time PIN — Cloudflare Access で実装）
+- [x] Slack でのリンクプレビュー（OGP タグ注入 + 動的 OGP 画像生成）
+- [x] アップロードした HTML 一覧ページ
 
 ### Should（あると良い）
 
 - [ ] 公開範囲設定（全体 / 特定メンバー / URL 知っている人のみ）
 - [ ] サムネイル自動生成（スクリーンショット）
 - [ ] esa / Notion への埋め込み対応（`<iframe>` タグ発行）
-- [ ] ドラッグ＆ドロップ UI
-- [ ] アップロード者・日時の表示
+- [x] ドラッグ＆ドロップ UI
+- [x] アップロード者・日時の表示
 
 ### Could（余裕があれば）
 
@@ -33,10 +33,10 @@
 
 ---
 
-## 懸念・議論ポイント
+## 懸念・議論ポイント（解決済み含む）
 
-- **認証基盤**: Google OAuth か GitHub か、ドメイン制限をどうするか
-- **ストレージ**: Supabase Storage / Cloudflare R2 / S3 どれが安いか
-- **ホスティング**: Cloudflare Workers か Vercel か
-- **費用**: 無料枠でどこまで賄えるか
-- **サムネイル生成**: Puppeteer/Playwright を使うか外部 API か
+- **認証基盤**: ✅ Cloudflare Access（GitHub / One-time PIN）で実装
+- **ストレージ**: ✅ Cloudflare R2 を採用
+- **ホスティング**: ✅ Cloudflare Workers を採用
+- **費用**: ✅ 小規模利用は無料枠内で運用中
+- **サムネイル生成**: △ OGP カード画像（resvg-wasm）は実装済み。フルスクリーンショットは未実装
