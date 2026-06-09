@@ -15,14 +15,21 @@ function escapeAttr(s: string): string {
 }
 
 function injectOgpTags(html: string, meta: DocumentMeta): string {
+  // 既存の og: / twitter: タグを除去してから Pagebox のタグを先頭に注入
+  const stripped = html.replace(
+    /<meta[^>]+(?:property="og:[^"]*"|name="twitter:[^"]*")[^>]*\/?>/gi,
+    "",
+  );
   const ogTags = `<meta property="og:title" content="${escapeAttr(meta.title)}" />
 <meta property="og:description" content="${escapeAttr(meta.description ?? "")}" />
 <meta property="og:type" content="website" />
 <meta property="og:url" content="https://view.pagebox.iodine2.net/${escapeAttr(meta.slug)}" />
-<meta property="og:image" content="https://pagebox.iodine2.net/d/${escapeAttr(meta.slug)}/og.png" />
-<meta name="twitter:card" content="summary_large_image" />`;
-  if (/<\/head>/i.test(html)) return html.replace(/<\/head>/i, `${ogTags}\n</head>`);
-  return `<head>${ogTags}\n</head>\n` + html;
+<meta name="twitter:card" content="summary" />`;
+  if (/<head[^>]*>/i.test(stripped))
+    return stripped.replace(/<head[^>]*>/i, (m) => `${m}\n${ogTags}`);
+  if (/<\/head>/i.test(stripped))
+    return stripped.replace(/<\/head>/i, `${ogTags}\n</head>`);
+  return `<head>\n${ogTags}\n</head>\n` + stripped;
 }
 
 interface RateLimiter {
