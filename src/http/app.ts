@@ -13,6 +13,7 @@ export interface AppDeps {
   repo: DocumentRepository;
   auth: AuthPort;
   userRepo: UserRepository;
+  rateLimiter?: { limit(opts: { key: string }): Promise<{ success: boolean }> };
 }
 
 export function createApp(deps: AppDeps): Hono {

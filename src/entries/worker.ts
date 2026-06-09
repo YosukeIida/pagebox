@@ -9,12 +9,17 @@ import { createCloudflareAccessAuth } from "../adapters/auth/cloudflare-access";
 import { createApp } from "../http/app";
 import { getDocument } from "../core/usecases/get-document";
 
+interface RateLimiter {
+  limit(options: { key: string }): Promise<{ success: boolean }>;
+}
+
 interface Env {
   DB: D1Db;
   STORAGE: R2Bkt;
   ASSETS: { fetch(req: Request): Promise<Response> };
   ACCESS_AUD: string;
   ACCESS_TEAM_DOMAIN: string;
+  RATE_LIMITER: RateLimiter;
 }
 
 export default {
@@ -49,7 +54,7 @@ export default {
       teamDomain: env.ACCESS_TEAM_DOMAIN,
       audience: env.ACCESS_AUD,
     });
-    const app = createApp({ storage, repo, auth, userRepo });
+    const app = createApp({ storage, repo, auth, userRepo, rateLimiter: env.RATE_LIMITER });
     return app.fetch(request);
   },
 };
