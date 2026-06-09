@@ -9,6 +9,7 @@ import { createCloudflareAccessAuth } from "../adapters/auth/cloudflare-access";
 import { createApp } from "../http/app";
 import { getDocument } from "../core/usecases/get-document";
 import type { DocumentMeta } from "../core/document";
+import type { KVStore } from "../http/routes/og-image";
 
 function escapeAttr(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -24,7 +25,8 @@ function injectOgpTags(html: string, meta: DocumentMeta): string {
 <meta property="og:description" content="${escapeAttr(meta.description ?? "")}" />
 <meta property="og:type" content="website" />
 <meta property="og:url" content="https://view.pagebox.iodine2.net/${escapeAttr(meta.slug)}" />
-<meta name="twitter:card" content="summary" />`;
+<meta property="og:image" content="https://pagebox.iodine2.net/d/${escapeAttr(meta.slug)}/og.png" />
+<meta name="twitter:card" content="summary_large_image" />`;
   if (/<head[^>]*>/i.test(stripped))
     return stripped.replace(/<head[^>]*>/i, (m) => `${m}\n${ogTags}`);
   if (/<\/head>/i.test(stripped))
@@ -43,6 +45,7 @@ interface Env {
   ACCESS_AUD: string;
   ACCESS_TEAM_DOMAIN: string;
   RATE_LIMITER: RateLimiter;
+  OG_CACHE_KV: KVStore;
 }
 
 export default {
@@ -79,7 +82,7 @@ export default {
       teamDomain: env.ACCESS_TEAM_DOMAIN,
       audience: env.ACCESS_AUD,
     });
-    const app = createApp({ storage, repo, auth, userRepo, rateLimiter: env.RATE_LIMITER });
+    const app = createApp({ storage, repo, auth, userRepo, rateLimiter: env.RATE_LIMITER, ogCache: env.OG_CACHE_KV });
     return app.fetch(request);
   },
 };
