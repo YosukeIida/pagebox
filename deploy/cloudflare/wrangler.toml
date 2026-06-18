@@ -24,6 +24,12 @@ migrations_dir = "migrations"
 [vars]
 ACCESS_TEAM_DOMAIN = "i2net.cloudflareaccess.com"
 ACCESS_AUD = "4562908ad77043dc3e5b899bf2e0b28bd5efdc11c9faec799466a3cb566e61d6"
+# account_id は wrangler が CLOUDFLARE_ACCOUNT_ID 環境変数から自動取得するため重複しないが
+# Analytics SQL API・GraphQL API・Access Audit Logs API の呼び出し元として Worker が参照する
+CLOUDFLARE_ACCOUNT_ID = "YOUR_ACCOUNT_ID"
+# ダッシュボードを表示するメールアドレス（カンマ区切り）
+# 本番では wrangler secret put ADMIN_EMAILS を使うことを推奨
+ADMIN_EMAILS = ""
 
 # OGP 画像キャッシュ用 KV（Feature 4 で使用）
 [[kv_namespaces]]
@@ -41,6 +47,11 @@ simple = { limit = 5, period = 60 }
 [[r2_buckets]]
 binding = "STORAGE"
 bucket_name = "pagebox-blobs"
+
+# Analytics Engine（閲覧・アップロードイベントの時系列記録）
+[[analytics_engine_datasets]]
+binding = "ANALYTICS"
+dataset = "pagebox_events"
 
 # resvg-wasm をビルド時にバンドル（動的インスタンス化は Workers で禁止）
 [[rules]]

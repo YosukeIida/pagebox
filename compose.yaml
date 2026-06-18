@@ -12,6 +12,8 @@ services:
       PAGEBOX_DATA_DIR: /data
       STORAGE_DRIVER: fs
       DB_DRIVER: sqlite
+      PAGEBOX_DEV_EMAIL: dev@localhost
+      ADMIN_EMAILS: dev@localhost
     command: sh -c "bun install && bun run dev"
 volumes:
   pagebox-data: {}
