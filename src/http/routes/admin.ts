@@ -107,13 +107,12 @@ async function fetchSystemData(cfApiToken: string, cfAccountId: string): Promise
     viewer {
       accounts(filter: {accountTag: "${cfAccountId}"}) {
         workersInvocationsAdaptive(
-          limit: 168
+          limit: 1
           filter: {
             datetime_geq: "${sevenDaysAgo}"
             datetime_lt: "${now}"
             scriptName: "pagebox"
           }
-          orderBy: [datetime_ASC]
         ) {
           sum { requests errors }
           quantiles { cpuTimeP50 cpuTimeP99 }
