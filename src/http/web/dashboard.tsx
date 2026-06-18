@@ -192,7 +192,7 @@ export function DashboardPage(props: DashboardProps) {
           <h2 class="section-heading">アクセス分析 <span class="panel-note">（直近30日）</span></h2>
           {!analytics ? (
             <p class="empty-label cf-unavail">
-              CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID が未設定のため表示できません
+              データを取得できませんでした（CLOUDFLARE_API_TOKEN の権限または Analytics Engine の設定を確認してください）
             </p>
           ) : (
             <div class="analytics-grid">
@@ -269,7 +269,7 @@ export function DashboardPage(props: DashboardProps) {
           <h2 class="section-heading">ログイン履歴</h2>
           {!logins ? (
             <p class="empty-label cf-unavail">
-              CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID が未設定のため表示できません
+              データを取得できませんでした（CLOUDFLARE_API_TOKEN の権限を確認してください）
             </p>
           ) : logins.length === 0 ? (
             <p class="empty-label">ログイン履歴がありません</p>
@@ -308,7 +308,7 @@ export function DashboardPage(props: DashboardProps) {
           <h2 class="section-heading">システム状態 <span class="panel-note">（直近7日）</span></h2>
           {!system ? (
             <p class="empty-label cf-unavail">
-              CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID が未設定のため表示できません
+              データを取得できませんでした（CLOUDFLARE_API_TOKEN の権限を確認してください）
             </p>
           ) : (
             <div class="stat-grid">

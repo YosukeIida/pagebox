@@ -116,7 +116,7 @@ async function fetchSystemData(cfApiToken: string, cfAccountId: string): Promise
           orderBy: [datetime_ASC]
         ) {
           sum { requests errors }
-          quantiles { cpuTimeUs { p50 p99 } }
+          quantiles { cpuTimeP50 cpuTimeP99 }
         }
         d1AnalyticsAdaptiveGroups(
           limit: 1
@@ -157,7 +157,7 @@ async function fetchSystemData(cfApiToken: string, cfAccountId: string): Promise
           accounts?: {
             workersInvocationsAdaptive?: {
               sum: { requests: number; errors: number };
-              quantiles?: { cpuTimeUs?: { p50: number; p99: number } };
+              quantiles?: { cpuTimeP50?: number; cpuTimeP99?: number };
             }[];
             d1AnalyticsAdaptiveGroups?: { sum: { readQueries: number } }[];
             r2StorageAdaptiveGroups?: { max: { payloadSize: number } }[];
@@ -172,7 +172,7 @@ async function fetchSystemData(cfApiToken: string, cfAccountId: string): Promise
     const workerRows = account.workersInvocationsAdaptive ?? [];
     const totalRequests = workerRows.reduce((s, r) => s + (r.sum?.requests ?? 0), 0);
     const totalErrors = workerRows.reduce((s, r) => s + (r.sum?.errors ?? 0), 0);
-    const lastCpu = workerRows[workerRows.length - 1]?.quantiles?.cpuTimeUs;
+    const lastCpu = workerRows[workerRows.length - 1]?.quantiles;
 
     const d1ReadQueries = account.d1AnalyticsAdaptiveGroups?.[0]?.sum?.readQueries ?? 0;
     const r2StorageBytes = account.r2StorageAdaptiveGroups?.[0]?.max?.payloadSize ?? 0;
@@ -180,8 +180,8 @@ async function fetchSystemData(cfApiToken: string, cfAccountId: string): Promise
     return {
       requestsLast7d: totalRequests,
       errorsLast7d: totalErrors,
-      cpuP50Ms: lastCpu ? lastCpu.p50 / 1000 : null,
-      cpuP99Ms: lastCpu ? lastCpu.p99 / 1000 : null,
+      cpuP50Ms: lastCpu?.cpuTimeP50 != null ? lastCpu.cpuTimeP50 / 1000 : null,
+      cpuP99Ms: lastCpu?.cpuTimeP99 != null ? lastCpu.cpuTimeP99 / 1000 : null,
       d1ReadQueries,
       r2StorageBytes,
     };
