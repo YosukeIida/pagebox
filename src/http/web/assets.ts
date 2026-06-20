@@ -1,12 +1,13 @@
 import { join } from "node:path";
 import type { Context } from "hono";
+import { renderCss } from "./css";
 
 let cachedJs: string | null = null;
 
 export async function serveStyle(c: Context) {
-  const path = join(import.meta.dir, "static/style.css");
-  const text = await Bun.file(path).text();
-  return c.text(text, 200, { "Content-Type": "text/css; charset=utf-8" });
+  const path = join(import.meta.dir, "static/components.css");
+  const components = await Bun.file(path).text();
+  return c.text(renderCss(components), 200, { "Content-Type": "text/css; charset=utf-8" });
 }
 
 export async function serveClientJs(c: Context) {

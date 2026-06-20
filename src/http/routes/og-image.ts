@@ -4,6 +4,7 @@ import { Resvg, initWasm } from "@resvg/resvg-wasm";
 // (dynamic instantiation via fetch is disallowed by the embedder)
 import resvgWasm from "@resvg/resvg-wasm/index_bg.wasm";
 import type { DocumentRepository } from "../../ports/repository";
+import { colors } from "../../design/tokens";
 
 export interface KVStore {
   get(key: string, type: "arrayBuffer"): Promise<ArrayBuffer | null>;
@@ -99,7 +100,7 @@ function buildSvg(title: string): string {
   // タイトルを上寄りに配置（1行なら y=280、2行なら y=220 から開始）
   const titleY = lines.length === 1 ? 280 : 220;
   const titleElems = lines
-    .map((l, i) => `<text x="${P}" y="${titleY + i * LH}" font-family="Noto Sans JP" font-size="${FONT_SIZE}" font-weight="900" fill="#1a1a1a">${esc(l)}</text>`)
+    .map((l, i) => `<text x="${P}" y="${titleY + i * LH}" font-family="Noto Sans JP" font-size="${FONT_SIZE}" font-weight="900" fill="${colors.light.text}">${esc(l)}</text>`)
     .join("\n  ");
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">
   <defs>
@@ -107,10 +108,10 @@ function buildSvg(title: string): string {
       <path d="M20 0L0 0 0 20" fill="none" stroke="#888" stroke-width="0.5"/>
     </pattern>
   </defs>
-  <rect width="${W}" height="${H}" fill="#f8f6f1"/>
+  <rect width="${W}" height="${H}" fill="${colors.light.surface}"/>
   <rect width="${W}" height="${H}" fill="url(#g)" opacity="0.4"/>
   ${titleElems}
-  <text x="${W - P}" y="${H - 52}" font-family="Noto Sans JP" font-size="48" font-weight="900" fill="#e07b39" text-anchor="end">pagebox</text>
+  <text x="${W - P}" y="${H - 52}" font-family="Noto Sans JP" font-size="48" font-weight="900" fill="${colors.light.accent}" text-anchor="end">pagebox</text>
 </svg>`;
 }
 

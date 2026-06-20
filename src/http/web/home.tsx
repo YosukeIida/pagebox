@@ -1,4 +1,7 @@
 import type { DocumentMeta } from "../../core/document";
+import { SiteHeader } from "./components/SiteHeader";
+import { Button } from "./components/Button";
+import { Card } from "./components/Card";
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -13,15 +16,7 @@ function formatDate(d: Date): string {
 export function HomePage(props: { documents: DocumentMeta[]; email: string }) {
   return (
     <div>
-      <header class="site-header">
-        <div class="container" style="display:flex;align-items:center;justify-content:space-between;width:100%">
-          <a href="/" class="site-logo">pagebox</a>
-          <div style="display:flex;align-items:center;gap:12px">
-            <span class="user-email">{props.email}</span>
-            <button class="theme-toggle" id="themeToggle">🌙</button>
-          </div>
-        </div>
-      </header>
+      <SiteHeader email={props.email} />
 
       <main class="container">
         <section class="hero">
@@ -39,15 +34,15 @@ export function HomePage(props: { documents: DocumentMeta[]; email: string }) {
           <div class="dropzone-icon">📄</div>
           <p><strong>クリックまたはドラッグ＆ドロップ</strong></p>
           <p>.html / .htm ファイル（最大 10MB）</p>
-          <input type="file" id="fileInput" accept=".html,.htm" style="display:none" />
+          <input type="file" id="fileInput" accept=".html,.htm" class="hidden" />
         </div>
 
         <div id="result" class="result-box hidden">
           <div class="result-url">
             <a id="resultLink" href="#" target="_blank" rel="noopener noreferrer"></a>
           </div>
-          <button class="btn btn-primary" id="copyBtn">コピー</button>
-          <a class="btn btn-secondary" id="openBtn" href="#" target="_blank" rel="noopener noreferrer">開く</a>
+          <Button variant="primary" id="copyBtn">コピー</Button>
+          <Button variant="secondary" id="openBtn" href="#" target="_blank" rel="noopener noreferrer">開く</Button>
         </div>
         <p id="errorMsg" class="error-msg hidden"></p>
 
@@ -59,7 +54,7 @@ export function HomePage(props: { documents: DocumentMeta[]; email: string }) {
             </div>
           ) : (
             props.documents.map((doc) => (
-              <div class="doc-card" id={`doc-${doc.slug}`} key={doc.slug}>
+              <Card id={`doc-${doc.slug}`} key={doc.slug}>
                 <div class="doc-info">
                   <div class="doc-title">{doc.title}</div>
                   <div class="doc-meta">
@@ -67,17 +62,17 @@ export function HomePage(props: { documents: DocumentMeta[]; email: string }) {
                   </div>
                 </div>
                 <div class="doc-actions">
-                  <a class="btn btn-secondary" href={`https://view.pagebox.iodine2.net/${doc.slug}`} target="_blank" rel="noopener noreferrer">
+                  <Button variant="secondary" href={`https://view.pagebox.iodine2.net/${doc.slug}`} target="_blank" rel="noopener noreferrer">
                     開く
-                  </a>
-                  <button class="btn btn-secondary" data-copy-url={`https://view.pagebox.iodine2.net/${doc.slug}`}>
+                  </Button>
+                  <Button variant="secondary" data-copy-url={`https://view.pagebox.iodine2.net/${doc.slug}`}>
                     URLコピー
-                  </button>
-                  <button class="btn btn-danger" data-delete-slug={doc.slug}>
+                  </Button>
+                  <Button variant="danger" data-delete-slug={doc.slug}>
                     削除
-                  </button>
+                  </Button>
                 </div>
-              </div>
+              </Card>
             ))
           )}
         </div>
