@@ -1,6 +1,6 @@
 # pagebox 画面遷移・ルート一覧
 
-このファイルは pagebox の画面遷移とルートを一望するための文書です。  
+このファイルは pagebox の画面遷移とルートを一望するための文書です。
 **正の情報源は `src/http/app.ts` のルート定義**です。本文書の記述と実装に差異がある場合は、コードを優先してください。
 
 ---
@@ -25,6 +25,7 @@ flowchart TD
         Viewer["GET /d/:slug\nviewerRoutes"]
         OgImage["GET /d/:slug/og.png\nogImageRoute\n※ ogCache がある場合のみ登録"]
         Admin["GET /admin\nadminRoutes\n※ adminEmails.length > 0 の場合のみ登録"]
+        Styleguide["GET /styleguide\nstyleguideRoutes\n要 requireAuth（ログインユーザー全員）"]
         StyleCSS["GET /static/style.css"]
         AppJS["GET /static/app.js"]
     end
@@ -43,6 +44,7 @@ flowchart TD
     requireAuth -->|"認証済み"| UploadAPI
     requireAuth -->|"認証済み"| DocsAPI
     requireAuth -->|"認証済み"| DeleteAPI
+    requireAuth -->|"認証済み"| Styleguide
     requireAuth -->|"adminEmails に含まれるか"| requireAdmin
     requireAdmin -->|"OK"| Admin
     requireAdmin -->|"NG（403 Forbidden）"| Browser
@@ -78,6 +80,7 @@ flowchart TD
 | `/d/:slug` | GET | `viewerRoutes` → 無名ハンドラ | なし | `https://view.pagebox.iodine2.net/:slug` へ 301 リダイレクト | XSS 隔離目的でサブドメインに分離 |
 | `/d/:slug/og.png` | GET | `ogImageRoute` → 無名ハンドラ | なし | 動的 OGP 画像（PNG）を生成・キャッシュして返す | **`deps.ogCache` が存在する場合のみルート登録される** |
 | `/admin` | GET | `adminRoutes` → 無名ハンドラ | requireAuth + requireAdmin | 管理ダッシュボード（分析・ログイン履歴・システム状態） | **`deps.adminEmails.length > 0` の場合のみルート登録される** |
+| `/styleguide` | GET | `styleguideRoutes` → 無名ハンドラ | requireAuth | デザインシステムの live リファレンス（トークンのスウォッチ + 全コンポーネント variant） | 常時登録（条件分岐なし） |
 
 ### 条件付き登録の詳細
 

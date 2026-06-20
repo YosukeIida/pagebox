@@ -37,14 +37,22 @@ export function StyleguidePage(props: { email: string }) {
         <section class="dashboard-section">
           <h2 class="section-heading">Colors</h2>
           <div class="sg-swatch-grid">
-            {Object.entries(colors.light).map(([key, value]) => {
+            {Object.keys(colors.light).map((key) => {
               const varName = `--${kebab(key)}`;
+              const lightVal = colors.light[key as keyof typeof colors.light];
+              const darkVal = colors.dark[key as keyof typeof colors.dark];
+              // shadow は色ではなく box-shadow 値なので、background ではなく影として見せる
+              const isShadow = key === "shadow";
+              const swatchStyle = isShadow
+                ? `box-shadow: var(${varName}); background: var(--surface)`
+                : `background: var(${varName})`;
               return (
                 <div class="sg-swatch" key={key}>
-                  <div class="sg-swatch-color" style={`background: var(${varName})`}></div>
+                  <div class="sg-swatch-color" style={swatchStyle}></div>
                   <div class="sg-swatch-meta">
                     <code class="sg-swatch-var">{varName}</code>
-                    <span class="sg-swatch-value">{value}</span>
+                    <span class="sg-swatch-value">light: {lightVal}</span>
+                    <span class="sg-swatch-value">dark: {darkVal}</span>
                   </div>
                 </div>
               );
