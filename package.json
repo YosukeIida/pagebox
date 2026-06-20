@@ -7,7 +7,7 @@
     "start": "bun run src/entries/bun.ts",
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
-    "build:worker": "mkdir -p dist/static && bun build src/http/web/client.ts --outfile dist/static/app.js --target browser && cp src/http/web/static/style.css dist/static/style.css",
+    "build:worker": "mkdir -p dist/static && bun build src/http/web/client.ts --outfile dist/static/app.js --target browser && bun run scripts/build-css.ts",
     "deploy:cf": "bun run build:worker && bunx wrangler deploy --config deploy/cloudflare/wrangler.toml",
     "cf:d1:create": "bunx wrangler d1 create pagebox",
     "cf:d1:migrate": "bunx wrangler d1 migrations apply pagebox --remote --config deploy/cloudflare/wrangler.toml",

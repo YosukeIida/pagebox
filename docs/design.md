@@ -8,37 +8,26 @@
 ## 方向性
 
 - **白基調・広い余白・カード**（角丸・薄い境界）
-- **アクセントはオレンジ1色**（`#e07b39`）。ボタン / リンク / ドロップゾーン強調のみに使う
+- **アクセントはオレンジ1色**（`#e07b39`）。ボタン / リンク / ドロップゾーン強調のみに使う。**アクセントは `--accent` 1トークンで後から差し替え可能**な設計
 - 本文はサンセリフ、見出しは大きめで視認性重視
 - **ダークモード対応**（`prefers-color-scheme` ＋ トグルで `[data-theme]` 上書き、`localStorage` 永続）
 - レスポンシブ（中央寄せ・最大幅で読みやすく）
 
-## デザイントークン（CSS 変数）
+## デザイントークンの正
 
-`src/http/web/static/style.css` の `:root` に定義。**アクセントは1トークンで後から差し替え可能**。
+**値の定義は `src/design/tokens.ts` を参照すること。この md には再掲しない。**
 
-```css
-:root{
-  --accent:#e07b39;            /* pagebox オレンジ */
-  --bg:#ffffff; --surface:#f8f6f1; --fg:#1a1a1a; --muted:#6b6456;
-  --border:#e5e7eb; --radius:14px; --maxw:880px;
-  --space:clamp(16px,4vw,40px);
-}
-:root[data-theme="dark"]{
-  --bg:#1a1814; --surface:#242220; --fg:#f3f4f6; --muted:#9ca3af; --border:#333;
-}
-@media (prefers-color-scheme: dark){
-  :root:not([data-theme="light"]){ /* dark と同値 */ }
-}
-```
+- colors（light / dark）・space・fontSize・fontWeight・radius を TypeScript で定義
+- `src/http/web/css.ts` の `renderCss()` がこの値から `:root` と `[data-theme="dark"]` の CSS 変数を生成し、`src/http/web/static/components.css`（コンポーネント定義）と結合して配信する
+- コンポーネントの CSS では直接 hex 値を書かず、`var(--token)` 経由で参照する規約
 
-## 画面構成（MVP）
+## コンポーネントの実物
 
-トップ（`/`）1画面に集約：
+`/styleguide`（ログイン後）でトークンのスウォッチと全コンポーネント variant を実 CSS から描画した live リファレンスを閲覧できる。実装の確認はここで行う。
 
-1. **ヒーロー** — 見出し「HTML を、ドラッグするだけで共有」＋サブコピー
-2. **ドロップゾーン** — ドラッグ&ドロップ、またはクリックでファイル選択（`.html,.htm`）
-3. **アップロード結果** — 発行 URL を表示、コピーボタン
-4. **一覧** — アップロード済み HTML をカード表示（タイトル / URL / 作成日時 / サイズ / 開く・コピー・削除）
+## 画面構成・フロー
 
-閲覧画面（`/d/:slug`）は `view.pagebox.iodine2.net/:slug` にリダイレクト（XSS 隔離サブドメイン）。OGP タグはリダイレクト先で注入済み。
+詳細は `docs/flow.md` を参照。概要:
+
+- **トップ（`/`）**: ヒーロー → ドロップゾーン → アップロード結果 → アップロード済み一覧
+- **閲覧（`/d/:slug`）**: XSS 隔離のためサブドメイン（`view.pagebox.iodine2.net/:slug`）にリダイレクト。OGP タグはリダイレクト先で注入済み

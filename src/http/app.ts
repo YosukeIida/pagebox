@@ -11,6 +11,7 @@ import { apiRoutes } from "./routes/api";
 import { viewerRoutes } from "./routes/viewer";
 import { ogImageRoute } from "./routes/og-image";
 import { adminRoutes } from "./routes/admin";
+import { styleguideRoutes } from "./routes/styleguide";
 import type { KVStore } from "./routes/og-image";
 
 export interface AppDeps {
@@ -42,6 +43,7 @@ export function createApp(deps: AppDeps): Hono {
   if (deps.adminEmails.length > 0) {
     app.route("/admin", adminRoutes(deps));
   }
+  app.route("/styleguide", styleguideRoutes(deps));
 
   app.notFound((c) => c.text("Not found", 404));
 

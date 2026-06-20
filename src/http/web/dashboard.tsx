@@ -1,4 +1,7 @@
 import type { AdminStats } from "../../ports/admin-repository";
+import { SiteHeader } from "./components/SiteHeader";
+import { StatCard } from "./components/StatCard";
+import { Badge } from "./components/Badge";
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -81,40 +84,17 @@ export function DashboardPage(props: DashboardProps) {
 
   return (
     <div>
-      <header class="site-header">
-        <div class="container" style="display:flex;align-items:center;justify-content:space-between;width:100%">
-          <div style="display:flex;align-items:center;gap:16px">
-            <a href="/" class="site-logo">pagebox</a>
-            <span class="admin-badge">admin</span>
-          </div>
-          <div style="display:flex;align-items:center;gap:12px">
-            <span class="user-email">{props.email}</span>
-            <button class="theme-toggle" id="themeToggle">🌙</button>
-          </div>
-        </div>
-      </header>
+      <SiteHeader email={props.email} showAdminBadge />
 
-      <main class="container" style="padding-top:32px;padding-bottom:64px">
+      <main class="container dashboard-main">
         <h1 class="dashboard-title">ダッシュボード</h1>
 
         {/* サマリーカード */}
         <div class="stat-grid">
-          <div class="stat-card">
-            <div class="stat-label">ユーザー数</div>
-            <div class="stat-value">{stats.userStats.length}</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-label">総ドキュメント数</div>
-            <div class="stat-value">{stats.totalDocCount}</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-label">総ストレージ使用量</div>
-            <div class="stat-value">{formatSize(stats.totalSize)}</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-label">直近30日の閲覧数</div>
-            <div class="stat-value">{totalViews !== null ? totalViews.toLocaleString() : "—"}</div>
-          </div>
+          <StatCard label="ユーザー数" value={stats.userStats.length} />
+          <StatCard label="総ドキュメント数" value={stats.totalDocCount} />
+          <StatCard label="総ストレージ使用量" value={formatSize(stats.totalSize)} />
+          <StatCard label="直近30日の閲覧数" value={totalViews !== null ? totalViews.toLocaleString() : "—"} />
         </div>
 
         {/* Panel 1: ユーザーアクティビティ */}
@@ -292,9 +272,9 @@ export function DashboardPage(props: DashboardProps) {
                       <td class="mono-cell">{l.ipAddress || "—"}</td>
                       <td>{formatDateTime(l.createdAt)}</td>
                       <td>
-                        <span class={l.allowed ? "badge-ok" : "badge-ng"}>
+                        <Badge variant={l.allowed ? "ok" : "ng"}>
                           {l.allowed ? "許可" : "拒否"}
-                        </span>
+                        </Badge>
                       </td>
                     </tr>
                   ))}
@@ -313,32 +293,16 @@ export function DashboardPage(props: DashboardProps) {
             </p>
           ) : (
             <div class="stat-grid">
-              <div class="stat-card">
-                <div class="stat-label">リクエスト数</div>
-                <div class="stat-value">{system.requestsLast7d.toLocaleString()}</div>
-              </div>
-              <div class="stat-card">
-                <div class="stat-label">エラー数</div>
-                <div class={`stat-value ${system.errorsLast7d > 0 ? "stat-error" : ""}`}>
-                  {system.errorsLast7d.toLocaleString()}
-                </div>
-              </div>
-              <div class="stat-card">
-                <div class="stat-label">CPU 時間 p50</div>
-                <div class="stat-value">{system.cpuP50Ms !== null ? `${system.cpuP50Ms.toFixed(1)} ms` : "—"}</div>
-              </div>
-              <div class="stat-card">
-                <div class="stat-label">CPU 時間 p99</div>
-                <div class="stat-value">{system.cpuP99Ms !== null ? `${system.cpuP99Ms.toFixed(1)} ms` : "—"}</div>
-              </div>
-              <div class="stat-card">
-                <div class="stat-label">D1 クエリ数</div>
-                <div class="stat-value">{system.d1ReadQueries.toLocaleString()}</div>
-              </div>
-              <div class="stat-card">
-                <div class="stat-label">R2 ストレージ</div>
-                <div class="stat-value">{formatSize(system.r2StorageBytes)}</div>
-              </div>
+              <StatCard label="リクエスト数" value={system.requestsLast7d.toLocaleString()} />
+              <StatCard
+                label="エラー数"
+                value={system.errorsLast7d.toLocaleString()}
+                error={system.errorsLast7d > 0}
+              />
+              <StatCard label="CPU 時間 p50" value={system.cpuP50Ms !== null ? `${system.cpuP50Ms.toFixed(1)} ms` : "—"} />
+              <StatCard label="CPU 時間 p99" value={system.cpuP99Ms !== null ? `${system.cpuP99Ms.toFixed(1)} ms` : "—"} />
+              <StatCard label="D1 クエリ数" value={system.d1ReadQueries.toLocaleString()} />
+              <StatCard label="R2 ストレージ" value={formatSize(system.r2StorageBytes)} />
             </div>
           )}
         </section>
