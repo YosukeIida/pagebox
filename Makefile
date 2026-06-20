@@ -29,6 +29,11 @@ cf-r2-create:
 cf-secret-aud:
 	$(NODE_CF) sh -c "echo '$$ACCESS_AUD' | npx --yes wrangler@4 secret put ACCESS_AUD --config deploy/cloudflare/wrangler.toml"
 
+# ダッシュボード用 secret を設定（ADMIN_EMAILS と CLOUDFLARE_API_TOKEN を .env.cloudflare から読み込み）
+cf-secret-dashboard:
+	$(NODE_CF) sh -c "echo '$$ADMIN_EMAILS' | npx --yes wrangler@4 secret put ADMIN_EMAILS --config deploy/cloudflare/wrangler.toml"
+	$(NODE_CF) sh -c "echo '$$CLOUDFLARE_API_TOKEN' | npx --yes wrangler@4 secret put CLOUDFLARE_API_TOKEN --config deploy/cloudflare/wrangler.toml"
+
 cf-kv-create:
 	$(NODE_CF) npx --yes wrangler@4 kv namespace create RATE_LIMIT_KV --config deploy/cloudflare/wrangler.toml
 
