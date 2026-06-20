@@ -154,7 +154,16 @@ Figma コンポーネントと `src/http/web/components/*` を `add_code_connect
 ```
 
 > **注意**: Code Connect の publish は Figma の Org/Enterprise プランが前提。
-> Student tier では publish できない可能性がある（その場合はステップ 1・2 まで留める）。
+
+### 検証結果（2026-06・student tier / TMLlab で実施）
+
+| ステップ | 結果 | メモ |
+|---|---|---|
+| 1. ライブラリ生成 | ✅ 動作 | `pagebox design system` ファイルに color 変数（Light/Dark 2モード・14色）+ scale 変数（spacing/radius/font-size/font-weight 計26）+ Button/Badge コンポーネント（塗り・文字色を color 変数にバインド）を生成。ダークモード追随を確認。 |
+| 2. 実画面の自動逆生成 | ⚠️ 不可 | 自動逆生成ツール（`generate_figma_design`）はこの MCP 接続に露出しておらず利用不可。画面を取り込む場合は `use_figma` で design-system コンポーネントから手組みする。 |
+| 3. Code Connect | ❌ 不可 | **student tier では publish 不可**。`add_code_connect_map` が `"You need a Dev or Full seat on an Organization or Enterprise plan to use Code Connect"` を返す。Org/Enterprise + Dev/Full seat が必要。 |
+
+→ **student tier での Figma 連携は「トークン→variables + コンポーネント生成」までが実用範囲**。Code Connect で「コードとデザインの双方向同期」を確立するには上位プランが要る。それまでは Claude Design（E）側のコード読み取りで代替するのが現実的。
 
 ---
 
