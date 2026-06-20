@@ -46,6 +46,7 @@ export interface AnalyticsData {
   topDocuments: ViewStat[];
   topCountries: CountryStat[];
   topReferers: RefererStat[];
+  totalViews: number;
   dailyViews: DailyView[];
 }
 
@@ -76,7 +77,7 @@ export interface DashboardProps {
 
 export function DashboardPage(props: DashboardProps) {
   const { stats, analytics, logins, system } = props;
-  const totalViews = analytics?.dailyViews.reduce((s, d) => s + d.viewCount, 0) ?? null;
+  const totalViews = analytics?.totalViews ?? null;
 
   return (
     <div>

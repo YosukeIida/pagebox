@@ -9,64 +9,47 @@ import type { AnalyticsData, LoginEntry, SystemData } from "../web/dashboard";
 
 type Vars = { Variables: { authContext: AuthContext } };
 
-async function fetchAnalyticsData(cfApiToken: string, cfAccountId: string): Promise<AnalyticsData | null> {
+async function sqlQuery(
+  cfApiToken: string,
+  cfAccountId: string,
+  query: string,
+): Promise<{ data?: Record<string, unknown>[] } | null> {
   try {
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 19);
-    const query = `
-      SELECT blob2 AS slug,
-        blob3 AS country,
-        blob4 AS referer,
-        SUM(_sample_interval) AS view_count
-      FROM pagebox_events
-      WHERE blob1 = 'view'
-        AND timestamp > toDateTime('${thirtyDaysAgo}')
-      GROUP BY slug, country, referer
-      ORDER BY view_count DESC
-      LIMIT 200
-    `;
     const res = await fetch(
       `https://api.cloudflare.com/client/v4/accounts/${cfAccountId}/analytics_engine/sql`,
       {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${cfApiToken}`,
-          "Content-Type": "text/plain",
-        },
+        headers: { Authorization: `Bearer ${cfApiToken}`, "Content-Type": "text/plain" },
         body: query,
       },
     );
     if (!res.ok) return null;
-    const json = await res.json() as { data?: { slug: string; country: string; referer: string; view_count: number }[] };
-    const rows = json.data ?? [];
-
-    // ドキュメント別集計
-    const slugMap = new Map<string, number>();
-    const countryMap = new Map<string, number>();
-    const refererMap = new Map<string, number>();
-    for (const r of rows) {
-      slugMap.set(r.slug, (slugMap.get(r.slug) ?? 0) + Number(r.view_count));
-      if (r.country) countryMap.set(r.country, (countryMap.get(r.country) ?? 0) + Number(r.view_count));
-      if (r.referer) refererMap.set(r.referer, (refererMap.get(r.referer) ?? 0) + Number(r.view_count));
-    }
-
-    return {
-      topDocuments: [...slugMap.entries()]
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 10)
-        .map(([slug, viewCount]) => ({ slug, viewCount })),
-      topCountries: [...countryMap.entries()]
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 10)
-        .map(([country, viewCount]) => ({ country, viewCount })),
-      topReferers: [...refererMap.entries()]
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 10)
-        .map(([referer, viewCount]) => ({ referer, viewCount })),
-      dailyViews: [],
-    };
+    return res.json() as Promise<{ data?: Record<string, unknown>[] }>;
   } catch {
     return null;
   }
+}
+
+async function fetchAnalyticsData(cfApiToken: string, cfAccountId: string): Promise<AnalyticsData | null> {
+  const BASE = `FROM pagebox_events WHERE blob1 = 'view' AND timestamp > now() - interval '30' day`;
+
+  // ランキングごとに独立した SQL で正確に集計（JS 側での再集計を排除）
+  const [docsJson, countriesJson, referersJson, totalJson] = await Promise.all([
+    sqlQuery(cfApiToken, cfAccountId, `SELECT blob2 AS slug, SUM(_sample_interval) AS view_count ${BASE} GROUP BY slug ORDER BY view_count DESC LIMIT 10`),
+    sqlQuery(cfApiToken, cfAccountId, `SELECT blob3 AS country, SUM(_sample_interval) AS view_count ${BASE} GROUP BY country ORDER BY view_count DESC LIMIT 10`),
+    sqlQuery(cfApiToken, cfAccountId, `SELECT blob4 AS referer, SUM(_sample_interval) AS view_count ${BASE} GROUP BY referer ORDER BY view_count DESC LIMIT 10`),
+    sqlQuery(cfApiToken, cfAccountId, `SELECT SUM(_sample_interval) AS total_views ${BASE}`),
+  ]);
+
+  if (!docsJson) return null;
+
+  return {
+    topDocuments: (docsJson.data ?? []).map((r) => ({ slug: String(r.slug ?? ""), viewCount: Number(r.view_count ?? 0) })).filter((r) => r.slug),
+    topCountries: (countriesJson?.data ?? []).map((r) => ({ country: String(r.country ?? ""), viewCount: Number(r.view_count ?? 0) })).filter((r) => r.country),
+    topReferers: (referersJson?.data ?? []).map((r) => ({ referer: String(r.referer ?? ""), viewCount: Number(r.view_count ?? 0) })).filter((r) => r.referer),
+    totalViews: Number(totalJson?.data?.[0]?.total_views ?? 0),
+    dailyViews: [],
+  };
 }
 
 async function fetchLoginHistory(cfApiToken: string, cfAccountId: string): Promise<LoginEntry[] | null> {
@@ -133,6 +116,7 @@ async function fetchSystemData(cfApiToken: string, cfAccountId: string): Promise
             datetime_lt: "${now}"
             bucketName: "pagebox-blobs"
           }
+          orderBy: [datetime_DESC]
         ) {
           max { payloadSize }
         }
