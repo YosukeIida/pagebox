@@ -165,6 +165,13 @@ Figma コンポーネントと `src/http/web/components/*` を `add_code_connect
 
 → **student tier での Figma 連携は「トークン→variables + コンポーネント生成」までが実用範囲**。Code Connect で「コードとデザインの双方向同期」を確立するには上位プランが要る。それまでは Claude Design（E）側のコード読み取りで代替するのが現実的。
 
+#### Code Connect の手動代替（Education/Pro 向け）
+
+Code Connect（Figma コンポーネント↔コードの自動マッピング）は Org/Enterprise 限定だが、その役割は**ルールファイル + 命名/変数名の一致**で手動代替できる（公式 `figma-create-design-system-rules` スキルも CLAUDE.md 生成という同じ発想）:
+- **`docs/figma-to-code-map.md`** … Figma コンポーネント/変数 → コードの対応表 + 「既存を再利用、新規 markup を作らない」ルール（Code Connect の手動版）。
+- **`CLAUDE.md`**（リポジトリ直下） … Claude Code が自動ロードする。上記マップと「`var(--token)` を使う／Hono JSX で実装」等の規約を要約。
+- **トークン橋渡しは達成済み**: Figma 変数名をコードのトークン名に一致させてあるため、`get_variable_defs` が返す名前をそのまま使える（Code Connect 不要）。
+
 ---
 
 ## 4. 使い分け
@@ -199,5 +206,34 @@ Figma コンポーネントと `src/http/web/components/*` を `add_code_connect
 | コンポーネント実装 | `src/http/web/components/` |
 | DS カード生成スクリプト | `scripts/build-ds-cards.tsx` |
 | Live コンポーネント確認 | `/styleguide`（ローカル: `make dev` 後 `localhost:3000/styleguide`） |
+| Figma→コード マッピング（Code Connect 代替） | `docs/figma-to-code-map.md` |
+| Claude Code 向けルール（自動ロード） | `CLAUDE.md` |
 | 画面フロー | `docs/flow.md` |
 | アーキテクチャ方針 | `docs/architecture.md` |
+
+---
+
+## 7. OSS 補完: Figma Console MCP（Code Connect 代替の一部）
+
+Code Connect が使えない（Education/Pro）環境で、**トークン同期**と**デザイン⇔コードの差分検査**を補う OSS（`southleft/figma-console-mcp`、MIT）。Plugin API + Desktop Bridge 経由で動くため Enterprise REST API 不要、**Local Mode なら全プランで variables/トークンが動く**。
+
+主なツール:
+- `figma_export_tokens` — Figma variables → DTCG JSON / CSS 変数 / Tailwind / SCSS 等（差分マージ、`variableId` 埋め込みでラウンドトリップ安全）。
+- `figma_check_design_parity` — Figma コンポーネント仕様とコード実装を比較し、スコア付き差分 + 修正項目を出力（Code Connect の「同期検査」を部分代替）。
+
+### セットアップ（Local Mode・推奨）
+
+前提:
+- **Node 18+**（⚠️ このマシンはローカル node が無いので nix `home.packages` 等で追加が必要）。
+- Figma デスクトップアプリ（Web 版不可）。
+- Figma 個人アクセストークン（PAT・`figd_`。最小スコープ: File content=Read / Variables=Read / Comments=Read&write。90日失効。**リポジトリにコミットしない**）。
+
+```bash
+claude mcp add figma-console -s user \
+  -e FIGMA_ACCESS_TOKEN=figd_YOUR_TOKEN -e ENABLE_MCP_APPS=true \
+  -- npx -y figma-console-mcp@latest
+```
+
+その後 Figma デスクトップで **Plugins → Development → Import plugin from manifest** → `~/.figma-console-mcp/plugin/manifest.json` → 「Figma Desktop Bridge」を実行し `Local · ready` を確認する。
+
+> Remote(SSE) モードは設定が楽だが variables が Enterprise 必須なので、本環境では Local Mode を使う。
