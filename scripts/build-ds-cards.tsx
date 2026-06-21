@@ -1,8 +1,16 @@
 // Claude Design（DesignSync）用のプレビューカード束を design-system/ に生成する。
 // 各ファイルは先頭行に `<!-- @dsCard group="..." -->` を持つ standalone HTML で、
 // tokens + components.css を renderCss() でインラインするため単体で正しく描画される。
-// 値は tokens.ts、コンポーネントは実コンポーネントを描画するので手動同期ゼロ。
+//
+// 同期の度合いはセクションで異なる:
+// - Foundations（colors/typography/spacing/radius）は tokens.ts を列挙、
+//   Button/Badge/StatCard は実コンポーネントを描画する → 値・コンポーネント変更に
+//   自動追随し手動同期ゼロ。
+// - doc-card / dropzone / result-box / error-msg は実画面（home.tsx）・styleguide.tsx と
+//   同じページパターンを写した静的マークアップ。これらはどのブランチでも未コンポーネント化
+//   のため、styleguide.tsx と同様にここも手動で同期させる（実画面変更時は要更新）。
 import { join } from "node:path";
+import { mkdir, readdir, rm } from "node:fs/promises";
 import { renderCss } from "../src/http/web/css";
 import { colors, space, fontSize, fontWeight, radius } from "../src/design/tokens";
 import { Button } from "../src/http/web/components/Button";
@@ -113,7 +121,7 @@ const radiusBody =
     .join("") +
   `</div>`;
 
-// --- Components（実コンポーネントを SSR 文字列化。Card は HTML 子要素のエスケープを避け div 直書き） ---
+// --- Components（Button/Badge/StatCard は実コンポーネントを SSR 文字列化して描画） ---
 const buttonsBody =
   `<div class="ds-demo-row">` +
   String(Button({ variant: "primary", href: "#", children: "primary" })) +
@@ -130,6 +138,8 @@ const badgesBody =
   String(Badge({ variant: "admin", children: "admin" })) +
   `</div>`;
 
+// doc-card / dropzone / result-box / error-msg は未コンポーネント化のページパターン。
+// home.tsx・styleguide.tsx の手書きマークアップを写した静的版（手動同期・上のヘッダー参照）。
 const docCard =
   `<div class="doc-card"><div class="doc-info">` +
   `<div class="doc-title">サンプルドキュメント.pdf</div>` +
@@ -166,6 +176,13 @@ const cards: Array<[string, string, string, string]> = [
   ["07-cards.html", "Components", "Card / StatCard", cardsBody],
   ["08-patterns.html", "Components", "UI patterns", patternsBody],
 ];
+
+// 生成前に既存の *.html を削除する。カードを削除・改名しても古い HTML が残らず、
+// DesignSync へ取り残しが再送されるのを防ぐ（出力先は design-system/ のみ）。
+await mkdir(outDir, { recursive: true });
+for (const name of await readdir(outDir)) {
+  if (name.endsWith(".html")) await rm(join(outDir, name));
+}
 
 for (const [file, group, title, body] of cards) {
   await Bun.write(join(outDir, file), card(group, title, body));
