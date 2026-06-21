@@ -16,6 +16,10 @@ dev-down:
 typecheck:
 	$(BUN) bun run typecheck
 
+# Claude Design（DesignSync）用のプレビューカード束を design-system/ に生成
+ds-cards:
+	$(BUN) bun run build:ds-cards
+
 # ── Cloudflare 初回セットアップ ──────────────────────────
 cf-access-setup:
 	$(NODE_CF) node scripts/setup-cloudflare-access.mjs
@@ -51,4 +55,4 @@ deploy:
 cf-dev:
 	$(NODE_CF) sh -c "npx --yes wrangler@4 dev --config deploy/cloudflare/wrangler.toml"
 
-.PHONY: dev dev-down typecheck cf-d1-create cf-r2-create cf-kv-create cf-d1-migrate backfill-description deploy cf-dev
+.PHONY: dev dev-down typecheck ds-cards cf-d1-create cf-r2-create cf-kv-create cf-d1-migrate backfill-description deploy cf-dev

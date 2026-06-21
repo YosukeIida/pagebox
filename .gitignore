@@ -2,8 +2,10 @@
 node_modules
 data/
 dist/
+design-system/
 *.db
 *.db-wal
 *.db-shm
 .env.cloudflare
 .wrangler/
+.direnv/

@@ -6,6 +6,7 @@
     "dev": "bun run --watch src/entries/bun.ts",
     "start": "bun run src/entries/bun.ts",
     "typecheck": "tsc --noEmit",
+    "build:ds-cards": "bun run scripts/build-ds-cards.tsx",
     "db:generate": "drizzle-kit generate",
     "build:worker": "mkdir -p dist/static && bun build src/http/web/client.ts --outfile dist/static/app.js --target browser && bun run scripts/build-css.ts",
     "deploy:cf": "bun run build:worker && bunx wrangler deploy --config deploy/cloudflare/wrangler.toml",
