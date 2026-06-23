@@ -15,7 +15,7 @@
 | PR #5 デザインシステム基盤 | ✅ **merged (main)** | tokens / css 生成 / components / styleguide / flow |
 | PR #6 コンポーネント参照階層の統一（catalog=単一の正）+ DesignSync 足場 | ✅ **merged (main)** | https://github.com/YosukeIida/pagebox/pull/6 |
 | PR #7 nix devshell | ✅ **merged (main)** | Node 22 + Python 3.13 + uv |
-| PR #8 `components.css` スケールトークン移行 | 🔵 **OPEN（要レビュー/マージ）** | https://github.com/YosukeIida/pagebox/pull/8 |
+| PR #8 `components.css` スケールトークン移行 | ✅ **merged (main)** | https://github.com/YosukeIida/pagebox/pull/8 |
 | figma-console-mcp（ローカル Figma MCP）導入・稼働 | ✅ end-to-end 確認 | nix 導入 + Desktop Bridge + 安定パス activation |
 | Figma ファイル（**コードから全再構築**） | ✅ 変数41 + 全7コンポーネント変数バインド | https://www.figma.com/design/ZPiO5rFJit4OGXifCXrZhZ |
 | Claude Design プロジェクト | ✅ push 済み | claude.ai/design「pagebox design system」（8 カード） |
@@ -41,7 +41,7 @@
 - **Code Connect 手動代替**: `docs/figma-to-code-map.md` + `CLAUDE.md`（catalog=見本の正、を明記）。
 - 派生の OSS **Figma Console MCP** 導入手順は `docs/design-workflow.md §7`。
 
-### 3. components.css スケールトークン移行（PR #8・OPEN）
+### 3. components.css スケールトークン移行（PR #8・merged）
 - 旧 CSS の literal px / font-weight を、値が一致する `var(--space-*/fs-*/fw-*/radius*)` へ移行（CLAUDE.md「生 px を書かない」準拠）。
 - **off-scale 値（6/10/20/40px・border 1/2px・max/min-width 等のレイアウト寸法・clamp 上限 2.5rem）は literal のまま**（対応トークンが無いため）。
 - 検証: `renderCss()` 出力の `var()` を `:root` 値へ逆解決した **computed CSS が移行前後で完全一致**＝値保存・visual 不変。
@@ -85,12 +85,11 @@
   - 2026/06/23「figma-console-mcp 導入・運用メモ（ローカル Figma MCP）」
 
 ## 次に必要なこと（TODO）
-1. **PR #8 をレビュー/マージ**（`components.css` トークン移行）: https://github.com/YosukeIida/pagebox/pull/8
-2. （任意）dotfiles の **figma-console 安定パス activation をコミット**（`nix/home/packages.nix`・現状未コミット）。
-3. （任意）**Claude Design でモック生成** → `/design-sync` で pull → Hono JSX + components.css で実装（import-at-creation）。
-4. （運用）Figma「Components (code-synced)」を更新したいとき: Figma デスクトップ + Desktop Bridge を Run → figma-console で再生成（コードが正）。
-5. （将来）Code Connect が必要なら Figma を Organization/Enterprise + Dev/Full seat へ。
-6. （製品）優先度中の機能: グループ招待 / ページネーション（`HANDOVER.md` 参照）。
+1. （任意）dotfiles の **figma-console 安定パス activation をコミット**（`nix/home/packages.nix`・現状未コミット）。
+2. （任意）**Claude Design でモック生成** → `/design-sync` で pull → Hono JSX + components.css で実装（import-at-creation）。
+3. （運用）Figma「Components (code-synced)」を更新したいとき: Figma デスクトップ + Desktop Bridge を Run → figma-console で再生成（コードが正）。
+4. （将来）Code Connect が必要なら Figma を Organization/Enterprise + Dev/Full seat へ。
+5. （製品）優先度中の機能: グループ招待 / ページネーション（`HANDOVER.md` 参照）。
 
 ## 検証コマンド
 - `make typecheck` / `make dev`（`/`・`/styleguide`・`/admin`）/ `make ds-cards`
