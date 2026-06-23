@@ -1,4 +1,4 @@
-# 引き継ぎ: デザインシステム化セッション (2026-06-21〜22)
+# 引き継ぎ: デザインシステム化セッション (2026-06-21〜23)
 
 ## 背景・目的
 
@@ -13,10 +13,13 @@
 | 項目 | 状態 | 場所 / 参照 |
 |---|---|---|
 | PR #5 デザインシステム基盤 | ✅ **merged (main)** | tokens / css 生成 / components / styleguide / flow |
-| PR #6 Claude Design 連携 + Code Connect 代替 | 🔵 **OPEN（要レビュー/マージ）** | https://github.com/YosukeIida/pagebox/pull/6 |
+| PR #6 コンポーネント参照階層の統一（catalog=単一の正）+ DesignSync 足場 | ✅ **merged (main)** | https://github.com/YosukeIida/pagebox/pull/6 |
 | PR #7 nix devshell | ✅ **merged (main)** | Node 22 + Python 3.13 + uv |
+| PR #8 `components.css` スケールトークン移行 | 🔵 **OPEN（要レビュー/マージ）** | https://github.com/YosukeIida/pagebox/pull/8 |
+| figma-console-mcp（ローカル Figma MCP）導入・稼働 | ✅ end-to-end 確認 | nix 導入 + Desktop Bridge + 安定パス activation |
+| Figma ファイル（**コードから全再構築**） | ✅ 変数41 + 全7コンポーネント変数バインド | https://www.figma.com/design/ZPiO5rFJit4OGXifCXrZhZ |
 | Claude Design プロジェクト | ✅ push 済み | claude.ai/design「pagebox design system」（8 カード） |
-| Figma ファイル（変数+コンポーネント） | ✅ 作成済み | https://www.figma.com/design/ZPiO5rFJit4OGXifCXrZhZ （TMLlab drafts） |
+| 設計判断・知見ノート | ✅ Obsidian 4本 | 個人 vault `obsidian-dagnetz` 2026/06/22〜23 |
 | `cc-launch-workspace` skill 修正 | ✅ 完了 | `~/.claude/skills/cc-launch-workspace/`（個人 skill・本 repo 外） |
 
 ## 詳細
@@ -24,53 +27,78 @@
 ### 1. コード=正のデザインシステム（PR #5・merged）
 - `src/design/tokens.ts` — トークンの単一ソース（color light/dark, space, fontSize, fontWeight, radius）。
 - `src/http/web/css.ts` の **`renderCss()`** — tokens から `:root` / `[data-theme="dark"]` を生成し `components.css` に連結。
-  **Bun(`serveStyle`) と Workers ビルド(`scripts/build-css.ts`) が共有**し、両経路で **byte 一致**を検証済み（新ドリフトを作らない）。
-- `src/http/web/static/style.css` → **`components.css`** にリネーム（トークンブロックは生成側へ）。
-- status/danger 色をトークン化（生 hex 排除）。`og-image.ts` の色も tokens 参照に統合。
-- 再利用 JSX コンポーネント抽出 `src/http/web/components/`（Button / Card / Badge / StatCard / SiteHeader）。home/dashboard/layout のインラインスタイル排除。
-- **`/styleguide`**（要ログイン）— tokens 列挙のスウォッチ + 全コンポーネントを実 CSS から描画する live リファレンス。
-- `docs/flow.md` 新規（Mermaid ルート図 + ルート表 + ジャーニー）。`docs/design.md` を現状に同期（値の再掲をやめ tokens.ts / styleguide を指す）。
+  **Bun(`serveStyle`) と Workers ビルド(`scripts/build-css.ts`) が共有**し、両経路で **byte 一致**を検証済み。
+- `src/http/web/static/style.css` → **`components.css`** にリネーム。status/danger 色をトークン化。
+- 再利用 JSX コンポーネント `src/http/web/components/`（Button / Card / Badge / StatCard / SiteHeader）。
+- **`/styleguide`** — tokens 列挙 + 全コンポーネントを実 CSS から描画する live リファレンス。
+- `docs/flow.md` / `docs/design.md`。
 
-### 2. Claude Design 連携（PR #6・OPEN）
-- `scripts/build-ds-cards.tsx` + **`make ds-cards`** → `design-system/*.html`（`@dsCard` マーカー付き standalone HTML 8 枚）を tokens + 実コンポーネントから生成（手動同期ゼロ・`design-system/` は gitignore）。
-- **DesignSync で claude.ai/design へ push 済み**（プロジェクト「pagebox design system」、8 カード、表示確認済み）。
-- `docs/design-workflow.md` — Claude Design / Figma の再利用ワークフロー文書。
-- **Code Connect の手動代替**（Education プランは Code Connect 不可なため）:
-  - `docs/figma-to-code-map.md` — Figma 変数/コンポーネント → コードの対応表 + 再利用ルール。
-  - `CLAUDE.md`（repo 直下）— Claude Code が自動ロードする規約（ports/adapters 境界・DS 再利用・figma-to-code-map 参照・ブランチ運用）。
-- `docs/design-workflow.md §7` — OSS **Figma Console MCP** の導入手順（未セットアップ）。
+### 2. コンポーネント参照階層の統一（PR #6・merged）
+当初は「DesignSync 足場」だったが、レビュー指摘（**見本 markup を各所で手書きコピーしておりドリフトする**）を受け目的を変更：
+- **見本 markup の唯一の正を `src/http/web/catalog.tsx` に集約**。`styleguide.tsx` と `scripts/build-ds-cards.tsx` は catalog の関数を描画/`String()` 化するだけの**薄い consumer** に。
+- 構造コンポーネント **`DropZone` / `ResultBox` / `ErrorMsg` / `DocCard`** を `components/` に抽出し、実画面 `home.tsx` と見本で共有。実画面の動的接点（`id`/`<input>`/`hidden`/`data-*`）は props で吸収し、**`client.ts` 接点は出力バイト保持を検証**（正規化 diff 空）。
+- DesignSync で `make ds-cards` → `design-system/*.html`（8枚）を claude.ai/design へ push。
+- **Code Connect 手動代替**: `docs/figma-to-code-map.md` + `CLAUDE.md`（catalog=見本の正、を明記）。
+- 派生の OSS **Figma Console MCP** 導入手順は `docs/design-workflow.md §7`。
 
-### 3. Figma 連携（外部・検証）
-- ファイル: `ZPiO5rFJit4OGXifCXrZhZ`（TMLlab drafts）。color 変数 14（Light/Dark 2 モード）+ scale 変数 26 + Button/Badge コンポーネント（塗り・文字色を color 変数にバインド、ダーク追随を確認）。
-- **検証結果（student tier）**: ライブラリ生成 ✅ / 自動逆生成 `generate_figma_design` ⚠️ この MCP 接続に未露出 / **Code Connect ❌ Org/Enterprise 必須（student 不可、`add_code_connect_map` がプラン要求エラー）**。
+### 3. components.css スケールトークン移行（PR #8・OPEN）
+- 旧 CSS の literal px / font-weight を、値が一致する `var(--space-*/fs-*/fw-*/radius*)` へ移行（CLAUDE.md「生 px を書かない」準拠）。
+- **off-scale 値（6/10/20/40px・border 1/2px・max/min-width 等のレイアウト寸法・clamp 上限 2.5rem）は literal のまま**（対応トークンが無いため）。
+- 検証: `renderCss()` 出力の `var()` を `:root` 値へ逆解決した **computed CSS が移行前後で完全一致**＝値保存・visual 不変。
+- トークン化粒度の方針: 繰り返し/on-scale 値はトークン化、一回限り/レイアウト/border 値は literal で残す。
 
-### 4. 開発環境（PR #7・merged）
-- `nix/flake.nix` + `nix/flake.lock` + `.envrc`（`use flake ./nix`）。**Node 22 + Python 3.13 + uv**。
-- `cd pagebox` で direnv が devshell を自動有効化（node/npx 使用可）。**既存端末は `direnv reload`、または新規端末**で反映。
+### 4. figma-console-mcp（ローカル Figma MCP）導入・稼働
+- **無料プランでも Figma の read/write・design-system 抽出が可能**（Figma Plugin API ベース、Code Connect 不使用 → 独自の `figma_get_design_system_kit` 等）。サードパーティ OSS（southleft 製）。
+- 導入: dotfiles `nix/home/packages.nix` の `buildNpmPackage` で導入（PATH に `figma-console-mcp`）→ `claude mcp add figma-console -s user -- figma-console-mcp`（stdio, user scope）。
+- 使用には **Figma デスクトップアプリ + Desktop Bridge プラグイン（Run → 緑 READY）が必須**。プラグインは manifest を import する。
+- **安定パス化（再 import 不要）**: dotfiles の `home.activation.figmaConsoleBridge` で `~/.figma-plugins/figma-desktop-bridge/` へ**実体コピー**（`cp -rL`、`darwin-switch` ごと更新）。Figma はそこから import すれば nix 再ビルドでハッシュが変わっても再 import 不要。**※この dotfiles 変更は未コミット。**
+- Cloud ペアリング（6桁コード）は **Claude が別デバイスの場合のみ**で、同一 Mac のローカル運用では不要。
+- REST 系ツール（file データ/版/画像）は **`FIGMA_ACCESS_TOKEN` 未設定で不可**（プラグイン系は PAT 不要で動く）。PAT は agenix 管理で zshenv にあるが MCP サーバに継承されていない。
+- **新規 MCP のツールは Claude Code 再起動でロード**される（セッション途中追加では使えない）。接続確認は `figma_get_status`（probe:true）。
 
-### 5. cmux 起動 skill 修正（`cc-launch-workspace`）
-- claude 起動を **`cmux send --workspace <id> "claude\n"`（決定論的 RPC）** に変更。
-  → workspace の **direnv 有効ターミナルで claude を起動**＝操作できる端末 TUI ＋ devshell（node/npx）継承。実証済み。
-- ❌ `cmux new-surface --type agent-session --provider claude` は不使用（cmux 管理の React サーフェス「Claude Code · React」になり操作困難・環境非継承）。
-- AppleScript キーストロークは OS フォーカス依存で不発しやすく、最終手段に降格。
+### 5. Figma ファイルをコードから全再構築（figma-console 経由）
+ファイル `ZPiO5rFJit4OGXifCXrZhZ`「pagebox design system」を **tokens.ts / catalog を正に全再構築**：
+- **変数**: `Colors`（Light/Dark 2モード・14色）+ `Scale`（space/fs/fw/radius・27）= 41個。CSS の `var(--NAME)` ↔ 同名 Figma 変数で 1:1。
+- **コンポーネント**: Button / Badge / StatCard / DocCard / DropZone / ResultBox / ErrorMsg を**変数バインド**で構築（fills/strokes/padding/radius/fontSize）。Section「Components (code-synced)」内に縦 auto-layout で整列。
+- 旧 Button/Badge は削除し作り直し。実装は **Sonnet 4.6 エージェントに委譲**し、Opus がスクショ + `boundVariables` 実データでレビュー。
+- 近似点（code→Figma は Plugin API 翻訳＝DOM 再現ではない）: hover/`.drag-over`/transition 無し、📄 は白黒字形、monospace→Inter 代替、fontWeight は名前付きスタイル（数値 fw 変数はバインド不可＝参照用）、DocCard は固定幅。
+
+### 6. 開発環境（PR #7・merged）
+- `nix/flake.nix` + `flake.lock` + `.envrc`。**Node 22 + Python 3.13 + uv**。`cd pagebox` で direnv が devshell 自動有効化。
+
+### 7. cmux 起動 skill 修正（`cc-launch-workspace`）
+- claude 起動を **`cmux send --workspace <id> "claude\n"`（決定論的 RPC）** に変更（direnv 有効端末で起動・環境継承）。
+- `cmux new-surface --type agent-session` は不使用。AppleScript キーストロークは不発しやすく最終手段。
 
 ## 重要な制約・知見
-- **Code = 正**。値の再掲はしない（design.md / 各 doc はポインタ）。生 hex/px を書かず `var(--token)`。UI は **Hono JSX（SSR・非 React、`class`）**。
-- **Figma student tier**: Code Connect 不可（Org/Enterprise + Dev/Full seat 必須）。MCP 自体とライブラリ生成は可。
-- **Claude Design**: DS 同期 = Claude Code（DesignSync / `/design-sync`）、モック生成 = claude.ai/design の Web UI。Claude Pro/Max/Team/Enterprise 必要。
-- **cmux で操作できる claude**: `cmux send "claude\n"`（端末・devshell 継承）。agent-session は避ける。
-- ローカルに bun/node を入れない（Docker + nix devshell）。wrangler のみ Node（コンテナ内 `node:20-slim`）。
+- **Code = 唯一の正**。値の再掲はしない（doc はポインタ）。生 hex/px を書かず `var(--token)`。UI は **Hono JSX（SSR・非 React、`class`）**。
+- **3者の役割**: Code=正・配信される実体 / `/styleguide`=in-repo の Storybook（catalog の live カタログ）/ **Claude Design**=その鏡 + AI 生成（**生成物は“提案”であって正ではない**）/ **Figma**=人間デザイナー協働の副チャネル。
+- **DesignSync の向き**: ツール仕様として **code → Claude Design の push**（read は差分計算用）。「Claude Design を正に code を上書き」する機能は無い＝**code=正**を前提に作られている。
+- **取り込み（Figma / Claude Design → code）= import-at-creation**: 提案を作成時に1回だけ参照し code で再実装・確定。**双方向同期しない**（同一成果物の master は常に code 1つ）。
+- **code → Figma のフィデリティ**: Plugin API で Figma ノードへ翻訳＝**近似**（hover/状態/絵文字/フォントは落ちる）。**Claude Design は実 HTML を描画するので忠実（DOM 一致）**。
+- **figma-console**: 無料プランで write 可だが**毎回 Figma デスクトップ + Bridge 起動が必要**。プラグインの「Run」は外部から自動化できない（手動）。Run 直前まで（設定・アプリ起動）は自動化可。
+- **公式 claude.ai Figma MCP**: クラウド実行でデスクトップアプリ不要・常時可。ただし **Code Connect は Organization/Enterprise + Dev/Full seat 必須**。
+- **Claude Design**: モック生成 = claude.ai/design Web UI、DS 同期 = Claude Code（DesignSync / `/design-sync`）。Claude Pro/Max/Team/Enterprise 必要。
+- ローカルに bun/node を入れない（Docker + nix devshell）。
+- **詳細ノート（個人 vault `obsidian-dagnetz/01_data/`）**:
+  - 2026/06/22「Code・Claude Design・Figma の関係と制約」「Claude Design と Figma のコード再現フィデリティ（実測）」「公式 Figma MCP とローカル Node 系 MCP・Code Connect の違い」
+  - 2026/06/23「figma-console-mcp 導入・運用メモ（ローカル Figma MCP）」
 
 ## 次に必要なこと（TODO）
-1. **PR #6 をレビュー/マージ**（最優先）: https://github.com/YosukeIida/pagebox/pull/6
-2. （任意）**Figma Console MCP セットアップ**: Figma PAT 作成 → pagebox 内で `claude` 起動（devshell 継承）→ `claude mcp add figma-console -s user -e FIGMA_ACCESS_TOKEN=figd_xxx -e ENABLE_MCP_APPS=true -- npx -y figma-console-mcp@latest` → Figma デスクトップで Desktop Bridge プラグイン取り込み。詳細 `docs/design-workflow.md §7`。
-3. （任意）**Claude Design でモック生成**: claude.ai/design でモック → `/design-sync` で pull → Hono JSX + components.css で実装。
-4. （任意）`components.css` の spacing/typography を**スケールトークンへ移行**（現状トークンは定義済みだが旧 CSS は literal のまま。`/styleguide` と新コンポーネントは新トークン使用）。
-5. （将来）Code Connect が必要なら Figma を Organization/Enterprise プランへ。
+1. **PR #8 をレビュー/マージ**（`components.css` トークン移行）: https://github.com/YosukeIida/pagebox/pull/8
+2. （任意）dotfiles の **figma-console 安定パス activation をコミット**（`nix/home/packages.nix`・現状未コミット）。
+3. （任意）**Claude Design でモック生成** → `/design-sync` で pull → Hono JSX + components.css で実装（import-at-creation）。
+4. （運用）Figma「Components (code-synced)」を更新したいとき: Figma デスクトップ + Desktop Bridge を Run → figma-console で再生成（コードが正）。
+5. （将来）Code Connect が必要なら Figma を Organization/Enterprise + Dev/Full seat へ。
+6. （製品）優先度中の機能: グループ招待 / ページネーション（`HANDOVER.md` 参照）。
 
 ## 検証コマンド
-- `make typecheck` / `make dev`（`localhost:3000` で `/`・`/styleguide`・`/admin`）/ `make ds-cards`
-- CSS 経路一致: `make deploy` のビルド成果物 `dist/static/style.css` が `serveStyle` 出力と一致すること（`renderCss()` 共有）
+- `make typecheck` / `make dev`（`/`・`/styleguide`・`/admin`）/ `make ds-cards`
+- CSS 経路一致: `make deploy` の `dist/static/style.css` が `serveStyle` 出力と一致（`renderCss()` 共有）。
+- figma-console 接続確認: `figma_get_status`（probe:true）→ ✅ かつ Desktop Bridge READY。
 
 ## 関連ファイル
-- 設計方針 `docs/design.md` / トークン `src/design/tokens.ts` / CSS 生成 `src/http/web/css.ts` / コンポーネント `src/http/web/components/` / 実物 `/styleguide` / フロー `docs/flow.md` / ワークフロー `docs/design-workflow.md` / Figma↔コード `docs/figma-to-code-map.md` / Claude Code 規約 `CLAUDE.md`
+- 設計方針 `docs/design.md` / トークン `src/design/tokens.ts` / CSS 生成 `src/http/web/css.ts`
+- 再利用コンポーネント `src/http/web/components/`（Button/Card/Badge/StatCard/SiteHeader + DropZone/ResultBox/ErrorMsg/DocCard）
+- **見本の単一の正 `src/http/web/catalog.tsx`** / 実物 `/styleguide` / DesignSync 生成 `scripts/build-ds-cards.tsx`
+- フロー `docs/flow.md` / ワークフロー `docs/design-workflow.md` / Figma↔コード `docs/figma-to-code-map.md` / Claude Code 規約 `CLAUDE.md`
