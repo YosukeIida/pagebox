@@ -11,6 +11,12 @@
 - **`wrangler.toml` の `routes` は環境に継承される。** `[env.stage].routes` を消すと stage の deploy が本番ドメインを奪う。`scripts/check-stage-config.ts` が routes・binding の本番重複・`TODO_` 残りを検証し、ローカルの `make stage-deploy` と CI の両方が deploy 前にこのゲートを通る（fail closed）。期待するホスト名やリソースを変えるときはこのスクリプトと `scripts/check-stage-config.test.ts` も更新する。
 - 新しいロジックを足すときは `bun test`（`make test`）にテストを追加する。現状は `src/core/urls.ts` と stage 設定ガードを対象にしている。
 
+## バージョン管理（データモデルの要点）
+- 1 slug = **複数バージョン**。`documents` は共有 URL の単位＋最新版のスナップショット、履歴は `document_versions`（append-only、PK は `(slug, version)`）。
+- blob のキーは版ごとに違う。**`${slug}.html` を組み立てず、必ず `document_versions.storage_key` を経由する**（導入前の既存オブジェクトは旧キーのまま残っている）。
+- 共有 URL は常に最新版を配信する。過去版は `/:slug/vN`。「戻す」は複製して新しい最新版にする（過去版を消さない）。
+- 公開 URL の組み立ては `src/core/urls.ts`（`viewUrl` / `ogImageUrl` / `parseViewPath`）に集約する。ハードコードしない。
+
 ## デザインシステム（重要）
 - デザイントークンの正は `src/design/tokens.ts`。CSS は `src/http/web/css.ts` の `renderCss()` が生成し、Bun（`serveStyle`）と Workers ビルド（`scripts/build-css.ts`）で共有する。**生 hex / px を書かず、必ず `var(--token)` を使う。**
 - UI は **Hono JSX（SSR・非 React）**。属性は `class`。再利用コンポーネントは `src/http/web/components/`。実物の一覧は `/styleguide`。

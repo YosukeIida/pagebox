@@ -25,7 +25,7 @@
 
 ### Could（余裕があれば）
 
-- [ ] バージョン管理（同一 slug で上書き更新）
+- [x] バージョン管理（同一 slug で新バージョンを追記。共有 URL は常に最新版。過去版は `/:slug/vN` で閲覧、「この版に戻す」は append-only で複製）
 - [ ] コメント機能
 - [ ] ZIP（複数ファイル）対応
 - [ ] CLI での deploy（`pagebox deploy index.html`）

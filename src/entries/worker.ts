@@ -10,33 +10,12 @@ import { createCloudflareAccessAuth } from "../adapters/auth/cloudflare-access";
 import { createCloudflareAnalytics } from "../adapters/analytics/cloudflare";
 import { createApp } from "../http/app";
 import { getDocument } from "../core/usecases/get-document";
-import type { DocumentMeta } from "../core/document";
-import type { Origins } from "../core/urls";
-import { ogImageUrl, viewHostname, viewUrl } from "../core/urls";
+// OGP タグ注入とレスポンス組み立ては http/viewer-render.ts に集約している
+// （dev-viewer と共有するため）
+import { parseViewPath, viewHostname } from "../core/urls";
+import { renderViewerResponse } from "../http/viewer-render";
 import type { KVStore } from "../http/routes/og-image";
 
-function escapeAttr(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-
-function injectOgpTags(html: string, meta: DocumentMeta, origins: Origins): string {
-  // 既存の og: / twitter: タグを除去してから Pagebox のタグを先頭に注入
-  const stripped = html.replace(
-    /<meta[^>]+(?:property=["']og:[^"']*["']|name=["']twitter:[^"']*["'])[^>]*\/?>/gi,
-    "",
-  );
-  const ogTags = `<meta property="og:title" content="${escapeAttr(meta.title)}" />
-<meta property="og:description" content="${escapeAttr(meta.description ?? "")}" />
-<meta property="og:type" content="website" />
-<meta property="og:url" content="${escapeAttr(viewUrl(origins, meta.slug))}" />
-<meta property="og:image" content="${escapeAttr(ogImageUrl(origins, meta.slug))}" />
-<meta name="twitter:card" content="summary_large_image" />`;
-  if (/<head[^>]*>/i.test(stripped))
-    return stripped.replace(/<head[^>]*>/i, (m) => `${m}\n${ogTags}`);
-  if (/<\/head>/i.test(stripped))
-    return stripped.replace(/<\/head>/i, `${ogTags}\n</head>`);
-  return `<head>\n${ogTags}\n</head>\n` + stripped;
-}
 
 interface RateLimiter {
   limit(options: { key: string }): Promise<{ success: boolean }>;
@@ -76,17 +55,15 @@ export default {
       if (url.pathname.startsWith("/static/")) {
         return env.ASSETS.fetch(request);
       }
-      const slug = url.pathname.slice(1).split("/")[0]; // "/abc123" → "abc123"
-      if (!slug) return new Response("Not found", { status: 404 });
+      // "/abc123" → 最新版、"/abc123/v2" → v2 固定
+      const parsed = parseViewPath(url.pathname);
+      if (!parsed) return new Response("Not found", { status: 404 });
+      const { slug, version } = parsed;
       const repo = createD1Repository(env.DB);
       const storage = createR2Storage(env.STORAGE);
-      const r = await getDocument({ storage, repo }, slug);
+      const r = await getDocument({ storage, repo }, slug, version);
       if (!r) return new Response("Not found", { status: 404 });
-      const html = new TextDecoder().decode(r.data);
-      const injected = injectOgpTags(html, r.meta, origins);
-      const response = new Response(injected, {
-        headers: { "Content-Type": `${r.meta.contentType}; charset=utf-8` },
-      });
+      const response = renderViewerResponse(r, origins);
       // Analytics Engine に閲覧イベントを記録（fire-and-forget）
       if (env.ANALYTICS) {
         const analytics = createCloudflareAnalytics(env.ANALYTICS);

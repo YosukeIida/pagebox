@@ -1,8 +1,9 @@
-import { eq, desc, count, sum, sql } from "drizzle-orm";
+import { eq, desc, count, sql } from "drizzle-orm";
 import type { DB } from "../../db/client";
-import { users, documents } from "../../db/schema";
+import { users, documents, documentVersions } from "../../db/schema";
 import type { AdminRepository, AdminStats } from "../../ports/admin-repository";
 
+// サイズ系の集計は document_versions を基準にする（d1-admin.ts と同じ方針）。
 export function createDrizzleAdminRepository(db: DB): AdminRepository {
   return {
     async getStats(): Promise<AdminStats> {
@@ -10,12 +11,10 @@ export function createDrizzleAdminRepository(db: DB): AdminRepository {
         .select({
           email: users.email,
           createdAt: users.createdAt,
-          docCount: sql<number>`COUNT(${documents.slug})`.as("doc_count"),
-          totalSize: sql<number>`COALESCE(SUM(${documents.size}), 0)`.as("total_size"),
+          docCount: sql<number>`(SELECT COUNT(*) FROM ${documents} d WHERE d.uploaded_by = ${users.id})`.as("doc_count"),
+          totalSize: sql<number>`(SELECT COALESCE(SUM(v.size), 0) FROM ${documentVersions} v WHERE v.created_by = ${users.id})`.as("total_size"),
         })
         .from(users)
-        .leftJoin(documents, eq(documents.uploadedBy, users.id))
-        .groupBy(users.id)
         .orderBy(desc(sql`doc_count`))
         .all();
 
@@ -25,6 +24,7 @@ export function createDrizzleAdminRepository(db: DB): AdminRepository {
           title: documents.title,
           size: documents.size,
           createdAt: documents.createdAt,
+          latestVersion: documents.latestVersion,
           uploadedBy: users.email,
         })
         .from(documents)
@@ -33,12 +33,13 @@ export function createDrizzleAdminRepository(db: DB): AdminRepository {
         .limit(20)
         .all();
 
-      const [totals] = await db
+      const [docTotals] = await db.select({ count: count() }).from(documents).all();
+      const [versionTotals] = await db
         .select({
-          totalDocCount: count(documents.slug),
-          totalSize: sql<number>`COALESCE(SUM(${documents.size}), 0)`,
+          count: count(),
+          size: sql<number>`COALESCE(SUM(${documentVersions.size}), 0)`,
         })
-        .from(documents)
+        .from(documentVersions)
         .all();
 
       return {
@@ -54,9 +55,11 @@ export function createDrizzleAdminRepository(db: DB): AdminRepository {
           uploadedBy: r.uploadedBy,
           createdAt: r.createdAt,
           size: r.size,
+          latestVersion: r.latestVersion,
         })),
-        totalDocCount: totals?.totalDocCount ?? 0,
-        totalSize: Number(totals?.totalSize ?? 0),
+        totalDocCount: Number(docTotals?.count ?? 0),
+        totalVersionCount: Number(versionTotals?.count ?? 0),
+        totalSize: Number(versionTotals?.size ?? 0),
       };
     },
   };

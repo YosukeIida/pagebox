@@ -21,16 +21,19 @@ export interface AppConfig {
   adminEmails: string[];
   cfApiToken?: string;
   cfAccountId?: string;
-  // 公開 URL のオリジン。ローカルには view 用のホストが無いため既定は app と同じにする
-  // （「開く」「URLコピー」のリンクが少なくとも壊れない値に留める）。
+  // 公開 URL のオリジン。ローカルには view 用のホストが無いので、開発ビューアが
+  // 有効なときは `http://localhost:PORT/raw` を既定にしてリンクが実際に開けるようにする。
   appOrigin: string;
   viewOrigin: string;
+  // 開発専用のビューア（/raw/:slug[/vN]）。ローカルで版別配信を確認するためだけの逃げ道。
+  devViewer: boolean;
 }
 
 export function loadConfig(env: Record<string, string | undefined>): AppConfig {
   const dataDir = env.PAGEBOX_DATA_DIR ?? "./data";
   const port = Number(env.PORT ?? 3000);
   const localOrigin = `http://localhost:${port}`;
+  const devViewer = env.PAGEBOX_DEV_VIEWER === "1";
   return {
     port,
     dataDir,
@@ -43,7 +46,8 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
     cfApiToken: env.CLOUDFLARE_API_TOKEN,
     cfAccountId: env.CLOUDFLARE_ACCOUNT_ID,
     appOrigin: env.PAGEBOX_APP_ORIGIN ?? localOrigin,
-    viewOrigin: env.PAGEBOX_VIEW_ORIGIN ?? localOrigin,
+    viewOrigin: env.PAGEBOX_VIEW_ORIGIN ?? (devViewer ? `${localOrigin}/raw` : localOrigin),
+    devViewer,
   };
 }
 
@@ -71,6 +75,7 @@ export function createContainer(config: AppConfig): { app: Hono; config: AppConf
     cfApiToken: config.cfApiToken,
     cfAccountId: config.cfAccountId,
     origins: { app: config.appOrigin, view: config.viewOrigin },
+    devViewer: config.devViewer,
   });
 
   return { app, config };

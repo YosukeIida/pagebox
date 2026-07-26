@@ -1,6 +1,6 @@
 # pagebox 引き継ぎ書
 
-最終更新: 2026-06-10（Feature 3/4 デプロイ・OGP 修正・公開リポジトリ化）
+最終更新: 2026-07-26（バージョン管理を実装）
 
 ---
 
@@ -11,7 +11,8 @@ HTML ファイルをドラッグ＆ドロップするだけで共有 URL を発�
 | 項目 | 内容 |
 |---|---|
 | 本番 URL | `https://pagebox.iodine2.net` |
-| 閲覧 URL | `https://view.pagebox.iodine2.net/:slug`（XSS 隔離サブドメイン） |
+| 閲覧 URL | `https://view.pagebox.iodine2.net/:slug`（常に最新版・XSS 隔離サブドメイン） |
+| 版固定 URL | `https://view.pagebox.iodine2.net/:slug/v2`（過去バージョンの閲覧用） |
 | ランタイム（Bun） | Docker コンテナ or Cloudflare Workers |
 | DB | SQLite（ローカル）/ D1（本番） |
 | Storage | ローカルファイルシステム / R2（本番） |
@@ -39,8 +40,9 @@ pagebox/
 │   ├── db/                     # Drizzle スキーマ・Bun SQLite クライアント
 │   ├── http/
 │   │   ├── middleware/         # requireAuth / rate-limit
-│   │   ├── routes/             # home / api / viewer / og-image
-│   │   └── web/                # layout.tsx / home.tsx / client.ts / style.css
+│   │   ├── routes/             # home / api / docs / viewer / dev-viewer / og-image / admin / styleguide
+│   │   ├── viewer-render.ts    # view 用レスポンス組み立て（worker と dev-viewer で共有）
+│   │   └── web/                # layout.tsx / home.tsx / share.tsx / catalog.tsx / components/ / client.ts
 │   ├── config/container.ts     # 依存の組み立て（Bun 用）
 │   ├── wasm.d.ts               # *.wasm モジュールの TypeScript 型宣言
 │   └── entries/
@@ -53,7 +55,8 @@ pagebox/
         └── migrations/
             ├── 0001_init.sql   # documents テーブル
             ├── 0002_auth_groups.sql  # users / groups / user_groups
-            └── 0003_ogp.sql    # documents.description カラム追加
+            ├── 0003_ogp.sql    # documents.description カラム追加
+            └── 0004_versions.sql     # document_versions + documents.latest_version/updated_at + v1 backfill
 ```
 
 ---
@@ -135,7 +138,8 @@ Zone: Workers Routes Edit（iodine2.net）
 | `STORAGE_DRIVER` | `fs` | `fs` のみ実装済み |
 | `DB_DRIVER` | `sqlite` | `sqlite` のみ実装済み |
 | `PAGEBOX_APP_ORIGIN` | `http://localhost:$PORT` | 管理画面のオリジン（`src/core/urls.ts` が使う） |
-| `PAGEBOX_VIEW_ORIGIN` | `http://localhost:$PORT` | 閲覧オリジン。ローカルには view ホストが無いため既定は app と同じ |
+| `PAGEBOX_VIEW_ORIGIN` | `http://localhost:$PORT`（`PAGEBOX_DEV_VIEWER=1` のときは `…/raw`） | 閲覧オリジン。ローカルには view ホストが無いため、開発ビューアが有効なら `/raw` を既定にしてリンクが実際に開けるようにする |
+| `PAGEBOX_DEV_VIEWER` | `0` | `1` で開発専用ビューア `/raw/:slug[/vN]` を有効化（`compose.yaml` は `1`）。**⚠️ メインドメインでユーザー HTML を配信するため XSS 隔離を破る。本番では絶対に立てない**（`entries/worker.ts` はこのフラグを渡さないので Cloudflare 経路には出ない） |
 
 ### Workers（`wrangler.toml` の vars。環境ごとに値が違う）
 
@@ -163,6 +167,26 @@ core/ ──→ ports/（インターフェース）
 
 - `core/` と `http/` は `adapters/` や `db/` を **import しない**
 - 新しいストレージ・DB を追加する場合は `ports/` のインターフェースを実装し、`container.ts` で配線する
+
+---
+
+## データモデル（バージョン管理）
+
+```
+documents          … 論理ドキュメント = 共有 URL の単位 + 最新版のスナップショット
+                     （title / description / size / original_name / latest_version / updated_at）
+document_versions  … 版の実体（append-only）。PK は (slug, version)
+                     storage_key に blob の実キー、source_version に「戻す」の由来を持つ
+```
+
+- **共有 URL は常に最新版を配信する**（`documents.latest_version`）。過去版は `/:slug/vN` の固定 URL。
+- **「この版に戻す」は append-only**。指定した版の中身を複製して新しい最新版として公開するので、過去の版は消えず、戻した操作自体も履歴に残る。
+- **バージョンは無制限に保持する**（自動 prune なし）。そのため admin の総サイズは `document_versions` 基準で集計している。
+- **blob キーは版ごとに独立**: 新規は `{slug}-v{N}.html`（`core/document.ts` の `versionStorageKey`）。
+  バージョン管理導入前の既存オブジェクトは `{slug}.html` のままで、`0004_versions.sql` の backfill が
+  それを v1 の `storage_key` として登録する（**R2 のオブジェクト移動は不要**）。
+  → 読み出し側は `${slug}.html` を組み立てず、**必ず `document_versions.storage_key` を経由すること**。
+- **キーにパス区切りを使わない**のは `adapters/storage/fs.ts` がフラットな名前空間しか許さないため（traversal 対策）。
 
 ---
 
@@ -261,6 +285,8 @@ PR のコードを本番前に検証する環境。**構成・セットアップ
 | レート制限 | PR #1（merged） | `/api/upload` に 5回/分 制限（Cloudflare Rate Limiting API） |
 | OGP + Description | PR #2（merged） | アップロード時に description 抽出、view サブドメインで og:/twitter: タグ注入 |
 | 動的 OGP 画像 | PR #3（merged） | `GET /d/:slug/og.png`、resvg-wasm + Noto Sans JP、KV 7日キャッシュ |
+| デザイントークン化 | PR #6 / #8（merged） | `src/design/tokens.ts` を正に CSS を生成、`catalog.tsx` を見本の単一の正に |
+| **バージョン管理** | feature/document-versions | 同名/同 title 検出 → 新規か更新かを選択、共有 URL は常に最新版、版固定 URL `/:slug/vN`、共有ポップオーバーの版一覧、append-only の「この版に戻す」 |
 
 ---
 
@@ -272,6 +298,8 @@ PR のコードを本番前に検証する環境。**構成・セットアップ
 |---|---|
 | **グループ招待** | 現在は個人グループのみ。他ユーザーを招待してドキュメント共有 |
 | **ページネーション** | ドキュメントが増えたときの一覧パフォーマンス対策 |
+| **特定版へのピン留め** | Claude Code artifact の「Always share latest version」トグル OFF 相当。共有 URL が指す版を最新以外に固定する。実装は `documents.pinned_version`（nullable）1列 + 配信側の 1 分岐で足りるが、現状は「常に最新」に固定している |
+| **バージョン数の上限** | 現在は無制限。R2 使用量が問題になったら「上限 N 版を超えたら最古を prune」を入れる（admin の総バージョン数・総サイズで監視できる） |
 
 ### 優先度 低（Phase3）
 

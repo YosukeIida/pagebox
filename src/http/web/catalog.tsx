@@ -11,6 +11,12 @@ import { DocCard } from "./components/DocCard";
 import { DropZone } from "./components/DropZone";
 import { ResultBox } from "./components/ResultBox";
 import { ErrorMsg } from "./components/ErrorMsg";
+import { SharePopover } from "./components/SharePopover";
+import { VersionList } from "./components/VersionList";
+import { VersionRow } from "./components/VersionRow";
+import { ChoiceDialog } from "./components/ChoiceDialog";
+import { UpdateChoices } from "./components/UpdateChoices";
+import type { DocumentMeta } from "../../core/document";
 
 // camelCase → kebab-case（css.ts の kebab と同一規則）。CSS 変数名の生成に使う。
 function kebab(key: string): string {
@@ -161,15 +167,95 @@ export function StatCardExamples() {
 export function DocCardExample() {
   return (
     <DocCard
-      title="サンプルドキュメント.html"
-      meta="2.4 MB · 2026年6月21日"
+      title={
+        <>
+          <span class="doc-title-text">サンプルドキュメント.html</span>
+          <Badge variant="version">v3</Badge>
+        </>
+      }
+      meta="更新 2026年6月21日 · 2.4 MB · 3 versions"
       actions={
         <>
+          <Button variant="secondary" type="button">共有</Button>
           <Button variant="secondary" href="#">開く</Button>
           <Button variant="danger" type="button">削除</Button>
         </>
       }
     />
+  );
+}
+
+// --- バージョン管理（Claude Code artifact の Share メニュー相当） ---
+
+// 見本用の固定日時。実画面では DocumentVersion.createdAt が入る。
+const SAMPLE_DATES = [
+  new Date("2026-07-26T12:30:00+09:00"),
+  new Date("2026-07-24T09:12:00+09:00"),
+  new Date("2026-07-20T18:40:00+09:00"),
+];
+
+export function SharePopoverExample() {
+  const url = "https://view.pagebox.iodine2.net/abc123";
+  return (
+    <SharePopover url={url}>
+      <VersionList currentVersion={3}>
+        <VersionRow
+          version={3}
+          createdAt={SAMPLE_DATES[0]}
+          size={24_700}
+          latest
+          actions={<Button variant="secondary" href="#">開く</Button>}
+        />
+        <VersionRow
+          version={2}
+          createdAt={SAMPLE_DATES[1]}
+          size={24_400}
+          actions={
+            <>
+              <Button variant="secondary" href="#">開く</Button>
+              <Button variant="secondary" type="button">URLコピー</Button>
+              <Button variant="secondary" type="button">この版に戻す</Button>
+            </>
+          }
+        />
+        <VersionRow
+          version={1}
+          createdAt={SAMPLE_DATES[2]}
+          size={20_700}
+          sourceVersion={null}
+          actions={
+            <>
+              <Button variant="secondary" href="#">開く</Button>
+              <Button variant="secondary" type="button">URLコピー</Button>
+              <Button variant="secondary" type="button">この版に戻す</Button>
+            </>
+          }
+        />
+      </VersionList>
+    </SharePopover>
+  );
+}
+
+// 見本用の DocumentMeta。UpdateChoices は実画面と同じ型を受ける。
+const SAMPLE_CANDIDATE: DocumentMeta = {
+  slug: "abc123",
+  title: "定例レポート",
+  description: null,
+  originalName: "index.html",
+  size: 24_700,
+  contentType: "text/html",
+  createdAt: SAMPLE_DATES[2],
+  groupId: "sample-group",
+  uploadedBy: "sample-user",
+  latestVersion: 3,
+  updatedAt: SAMPLE_DATES[0],
+};
+
+export function ChoiceDialogExample() {
+  return (
+    <ChoiceDialog title="同じ名前のドキュメントがあります" confirmLabel="決定" inline>
+      <UpdateChoices candidates={[SAMPLE_CANDIDATE]} />
+    </ChoiceDialog>
   );
 }
 

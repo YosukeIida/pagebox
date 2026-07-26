@@ -14,6 +14,8 @@ export const colors = {
     accentHover: "#c96a28",
     accentText: "#ffffff",
     shadow: "0 2px 8px rgba(0, 0, 0, 0.06)",
+    // モーダルの背景幕
+    overlay: "rgba(26, 26, 26, 0.45)",
     danger: "#e53935",
     dangerText: "#ffffff",
     successBg: "#e8f5e9",
@@ -31,6 +33,7 @@ export const colors = {
     accentHover: "#f08949",
     accentText: "#ffffff",
     shadow: "0 2px 8px rgba(0, 0, 0, 0.3)",
+    overlay: "rgba(0, 0, 0, 0.6)",
     danger: "#e53935",
     dangerText: "#ffffff",
     successBg: "#1b3a1c",

@@ -13,6 +13,8 @@ import {
   StatCardExamples,
   DocCardExample,
   UiPatternExamples,
+  SharePopoverExample,
+  ChoiceDialogExample,
 } from "./catalog";
 
 export function StyleguidePage(props: { email: string }) {
@@ -71,6 +73,12 @@ export function StyleguidePage(props: { email: string }) {
 
           <h3 class="sub-heading sg-spaced-heading">Card</h3>
           <DocCardExample />
+
+          <h3 class="sub-heading sg-spaced-heading">SharePopover / VersionList</h3>
+          <SharePopoverExample />
+
+          <h3 class="sub-heading sg-spaced-heading">ChoiceDialog / UpdateChoices</h3>
+          <ChoiceDialogExample />
 
           <h3 class="sub-heading sg-spaced-heading">UI patterns</h3>
           <UiPatternExamples />
