@@ -4,6 +4,11 @@
 
 ## アーキテクチャ境界
 - `core/`・`http/` は `adapters/`・`db/` を **import しない**（ports/adapters）。新しいストレージ/DB は `ports/` のインターフェースを実装し `config/container.ts` で配線する。
+- **公開 URL を直書きしない。** `src/core/urls.ts` の `viewUrl()` / `ogImageUrl()` を使い、オリジンは `AppDeps.origins`（Workers は `APP_ORIGIN` / `VIEW_ORIGIN` の vars、Bun は `PAGEBOX_*_ORIGIN`）から注入する。本番と stage で値が違うため直書きすると stage が本番 URL を吐く。
+
+## 環境
+- Cloudflare は **本番と stage の2環境**（`wrangler.toml` の `[env.stage]`）。PR に `stage` ラベルを付けると CI が stage へ deploy する。stage の D1/R2/KV は PR 間で共有。詳細は `docs/deploy-stage.md`。
+- **`wrangler.toml` の `routes` は環境に継承される。** `[env.stage].routes` を消すと stage の deploy が本番ドメインを奪うので触らない。`make stage-deploy-dry` を必ず先に通す。
 
 ## デザインシステム（重要）
 - デザイントークンの正は `src/design/tokens.ts`。CSS は `src/http/web/css.ts` の `renderCss()` が生成し、Bun（`serveStyle`）と Workers ビルド（`scripts/build-css.ts`）で共有する。**生 hex / px を書かず、必ず `var(--token)` を使う。**

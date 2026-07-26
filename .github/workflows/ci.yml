@@ -1,0 +1,35 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# 同じ PR に続けて push したときは古い実行を打ち切る
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - run: bun install --frozen-lockfile
+
+      - name: typecheck
+        run: bun run typecheck
+
+      # 見本カード（DesignSync 用）が生成できることも確認する。
+      # catalog.tsx を壊すと styleguide も同時に壊れるため、ここで検出できる。
+      - name: build design-system cards
+        run: bun run build:ds-cards
+
+      # Workers 向けのクライアント JS / CSS がビルドできること
+      - name: build worker assets
+        run: bun run build:worker

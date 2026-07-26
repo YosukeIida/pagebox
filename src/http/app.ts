@@ -5,6 +5,7 @@ import type { AuthPort } from "../ports/auth";
 import type { UserRepository } from "../ports/user-repository";
 import type { AnalyticsPort } from "../ports/analytics";
 import type { AdminRepository } from "../ports/admin-repository";
+import type { Origins } from "../core/urls";
 import { serveStyle, serveClientJs } from "./web/assets";
 import { homeRoutes } from "./routes/home";
 import { apiRoutes } from "./routes/api";
@@ -19,6 +20,8 @@ export interface AppDeps {
   repo: DocumentRepository;
   auth: AuthPort;
   userRepo: UserRepository;
+  // 公開 URL のオリジン。環境（本番 / stage / ローカル）ごとに違うため必ず注入する。
+  origins: Origins;
   rateLimiter?: { limit(opts: { key: string }): Promise<{ success: boolean }> };
   ogCache?: KVStore;
   analytics: AnalyticsPort;

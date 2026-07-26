@@ -3,6 +3,11 @@
 このファイルは pagebox の画面遷移とルートを一望するための文書です。
 **正の情報源は `src/http/app.ts` のルート定義**です。本文書の記述と実装に差異がある場合は、コードを優先してください。
 
+> 以下のホスト名は**本番の値**です。オリジンは環境変数（`APP_ORIGIN` / `VIEW_ORIGIN`）から注入され、
+> stage では `stage.pagebox.iodine2.net` / `view.stage.pagebox.iodine2.net` になります。
+> URL の組み立ては `src/core/urls.ts` に集約されています（直書き禁止）。環境の詳細は
+> [deploy-stage.md](deploy-stage.md)。
+
 ---
 
 ## ルート／遷移図

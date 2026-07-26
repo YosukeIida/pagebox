@@ -195,7 +195,7 @@ export function adminRoutes(deps: AppDeps): Hono {
         ])
       : [null, null, null];
 
-    const content = DashboardPage({ email, stats, analytics, logins, system });
+    const content = DashboardPage({ email, stats, analytics, logins, system, origins: deps.origins });
     const page = Layout({ title: "pagebox admin", children: content });
     return c.html(page as unknown as string);
   });

@@ -27,6 +27,14 @@ HTML アップロード＆URL 共有サービスとして、管理者が以下�
 | 直近アップロード一覧 | `documents JOIN users` |
 | グループ構成 | `groups`, `user_groups` |
 
+> **stage では外部 API 由来のパネルが空になる。** stage には `CLOUDFLARE_API_TOKEN` を置かない方針のため
+> （本番スコープのトークンを stage に持ち込まない）、`admin.ts` の `hasCfCreds` が false になり
+> Analytics・ログイン履歴・システム状態は空欄で描画される。D1 由来の統計（ユーザー別・直近アップロード・
+> 総件数・総サイズ）は stage でも表示される。詳細は [deploy-stage.md](deploy-stage.md)。
+>
+> なお `fetchSystemData` は `scriptName: "pagebox"` / `bucketName: "pagebox-blobs"` を直書きしている。
+> 将来 stage にトークンを置く場合は、これらを環境変数化しないと **stage で本番のメトリクスが表示される**。
+
 ### 2. Cloudflare Analytics Engine（新規 binding 追加が必要）
 
 Workers から `env.ANALYTICS.writeDataPoint()` でカスタムイベントを書き込む時系列 DB。SQL API でクエリ可能。
