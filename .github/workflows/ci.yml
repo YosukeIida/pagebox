@@ -25,6 +25,10 @@ jobs:
       - name: typecheck
         run: bun run typecheck
 
+      # core/urls.ts のビューア判定と、stage 設定ガード（scripts/check-stage-config.ts）の回帰テスト
+      - name: test
+        run: bun test
+
       # 見本カード（DesignSync 用）が生成できることも確認する。
       # catalog.tsx を壊すと styleguide も同時に壊れるため、ここで検出できる。
       - name: build design-system cards

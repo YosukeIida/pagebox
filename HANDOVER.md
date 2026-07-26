@@ -76,6 +76,7 @@ cp .env.cloudflare.example .env.cloudflare
 make dev          # http://localhost:3000 で起動（ソースをマウント + watch）
 make dev-down     # 停止
 make typecheck    # 型チェック
+make test         # bun test（core/urls.ts と stage 設定ガードの回帰テスト）
 ```
 
 ### Cloudflare デプロイ
@@ -89,7 +90,8 @@ make backfill-description    # description が null のドキュメントを R2 
 ### stage デプロイ
 
 ```bash
-make stage-deploy-dry        # ⚠️ 必ず先に。routes と bindings を表示して確認する
+make check-stage-config      # stage 設定が本番から分離されているかを検証（deploy 経路は必ずこれを通る）
+make stage-deploy-dry        # 上記 + wrangler --dry-run
 make stage-deploy            # stage へ deploy
 make cf-stage-migrate        # stage D1 マイグレーション適用（共有 DB なので手動のみ）
 make cf-stage-reset          # stage D1 を初期化して作り直す
@@ -243,7 +245,9 @@ PR のコードを本番前に検証する環境。**構成・セットアップ
 - **`CLOUDFLARE_API_TOKEN` は stage に置かない**ため `/admin` の外部 API 由来パネルは空欄になる
 
 > ⚠️ wrangler の `routes` は環境に**継承される**。`[env.stage]` の routes を消すと
-> `deploy --env stage` が本番のカスタムドメインを奪う。`make stage-deploy-dry` を必ず先に通すこと。
+> `deploy --env stage` が本番のカスタムドメインを奪う。これを防ぐため
+> `scripts/check-stage-config.ts` が routes の一致・binding の本番重複・`TODO_` の残りを検証し、
+> **ローカルの `make stage-deploy` と CI の両方が deploy 前にこのゲートを通る**（fail closed）。
 
 ---
 

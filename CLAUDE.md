@@ -8,7 +8,8 @@
 
 ## 環境
 - Cloudflare は **本番と stage の2環境**（`wrangler.toml` の `[env.stage]`）。PR に `stage` ラベルを付けると CI が stage へ deploy する。stage の D1/R2/KV は PR 間で共有。詳細は `docs/deploy-stage.md`。
-- **`wrangler.toml` の `routes` は環境に継承される。** `[env.stage].routes` を消すと stage の deploy が本番ドメインを奪うので触らない。`make stage-deploy-dry` を必ず先に通す。
+- **`wrangler.toml` の `routes` は環境に継承される。** `[env.stage].routes` を消すと stage の deploy が本番ドメインを奪う。`scripts/check-stage-config.ts` が routes・binding の本番重複・`TODO_` 残りを検証し、ローカルの `make stage-deploy` と CI の両方が deploy 前にこのゲートを通る（fail closed）。期待するホスト名やリソースを変えるときはこのスクリプトと `scripts/check-stage-config.test.ts` も更新する。
+- 新しいロジックを足すときは `bun test`（`make test`）にテストを追加する。現状は `src/core/urls.ts` と stage 設定ガードを対象にしている。
 
 ## デザインシステム（重要）
 - デザイントークンの正は `src/design/tokens.ts`。CSS は `src/http/web/css.ts` の `renderCss()` が生成し、Bun（`serveStyle`）と Workers ビルド（`scripts/build-css.ts`）で共有する。**生 hex / px を書かず、必ず `var(--token)` を使う。**

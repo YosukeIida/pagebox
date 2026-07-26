@@ -16,6 +16,9 @@ dev-down:
 typecheck:
 	$(BUN) bun run typecheck
 
+test:
+	$(BUN) bun test
+
 # Claude Design（DesignSync）用のプレビューカード束を design-system/ に生成
 ds-cards:
 	$(BUN) bun run build:ds-cards
@@ -72,17 +75,18 @@ cf-stage-secret:
 	$(NODE_CF) sh -c "echo '$$ADMIN_EMAILS' | npx --yes wrangler@4 secret put ADMIN_EMAILS --env stage --config deploy/cloudflare/wrangler.toml"
 
 # ── stage 環境（運用）──────────────────────────────────────
-# deploy 前に必ず通す。
-# wrangler の --dry-run は routes を出力しない（bindings だけ）ので、
-# 本番ドメインが混ざっていないかは設定ファイルを直接表示して確認する。
-stage-deploy-dry:
-	@echo "── [env.stage] の routes（本番ドメインが混ざっていないか確認する）──"
-	@sed -n '/^\[env\.stage\]/,/^$$/p' deploy/cloudflare/wrangler.toml
+# stage 設定が本番から分離されているかを機械的に検証する（問題があれば非ゼロで終了）。
+# wrangler の --dry-run は routes を出力しないため、routes の一致・binding の重複・
+# TODO_ の残りはこのスクリプトが受け持つ。deploy 経路は必ずこれを通す。
+check-stage-config:
+	$(BUN) bun run check:stage-config
+
+stage-deploy-dry: check-stage-config
 	@echo "── bindings が stage のリソースを指しているか（wrangler --dry-run）──"
 	docker run --rm -v $(PWD):/app -w /app -v pagebox-bun-cache:/root/.bun oven/bun:1 bun run build:worker
 	$(NODE_CF) npx --yes wrangler@4 deploy --env stage --dry-run --config deploy/cloudflare/wrangler.toml
 
-stage-deploy:
+stage-deploy: check-stage-config
 	docker run --rm -v $(PWD):/app -w /app -v pagebox-bun-cache:/root/.bun oven/bun:1 bun run build:worker
 	$(NODE_CF) npx --yes wrangler@4 deploy --env stage --config deploy/cloudflare/wrangler.toml
 
@@ -97,5 +101,5 @@ cf-stage-reset:
 	  --command "DROP TABLE IF EXISTS document_versions; DROP TABLE IF EXISTS documents; DROP TABLE IF EXISTS user_groups; DROP TABLE IF EXISTS groups; DROP TABLE IF EXISTS users; DELETE FROM d1_migrations;"
 	$(MAKE) cf-stage-migrate
 
-.PHONY: dev dev-down typecheck ds-cards cf-access-setup cf-d1-create cf-r2-create cf-kv-create cf-secret-aud cf-secret-dashboard cf-d1-migrate backfill-description deploy cf-dev \
-	cf-stage-d1-create cf-stage-r2-create cf-stage-kv-create cf-stage-secret stage-deploy-dry stage-deploy cf-stage-migrate cf-stage-reset
+.PHONY: dev dev-down typecheck test ds-cards cf-access-setup cf-d1-create cf-r2-create cf-kv-create cf-secret-aud cf-secret-dashboard cf-d1-migrate backfill-description deploy cf-dev \
+	cf-stage-d1-create cf-stage-r2-create cf-stage-kv-create cf-stage-secret check-stage-config stage-deploy-dry stage-deploy cf-stage-migrate cf-stage-reset

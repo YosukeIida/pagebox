@@ -26,8 +26,14 @@ PR のコードを本番に入れる前に検証するための環境。**本番
 
 - **`stage` ラベルを付けた PR だけ**が deploy 対象（`.github/workflows/stage.yml`）
 - ラベルが付いている PR は、以降の push で**自動的に** stage が更新される
-- **他の open PR が既に `stage` ラベルを持っていたら CI がガードで落ちる**（「#NN が使用中」と表示）
+- **他の open PR が既に `stage` ラベルを持っていたら CI がガードで落ちる**（「#NN が使用中」と表示）。
+  占有確認の API 取得が失敗した場合も落ちる（`set -euo pipefail`。障害を「空き」と解釈しない）
 - 確認が終わったらラベルを外して次の PR に譲る
+
+**`workflow_dispatch`（手動実行）は意図的に用意していない。** 手動実行は job 条件と占有ガードを
+迂回して任意ブランチを stage に流せてしまうため。ローカルからの deploy が必要なら
+`make stage-deploy` を使う（同じ設定ガードを通る）。CI の再実行は GitHub の re-run
+（元の `pull_request` イベントで走るのでガードが効く）で行う。
 
 ### データは PR 間で共有する（PR ごとに DB は作らない）
 
@@ -88,17 +94,30 @@ make cf-stage-secret       # ADMIN_EMAILS のみ
 ### 4. deploy
 
 ```bash
-make stage-deploy-dry      # ⚠️ 必ず先に実行。routes と bindings を表示して確認する
+make stage-deploy-dry      # 設定ガード + wrangler --dry-run
 make stage-deploy          # custom_domain が DNS レコードと証明書を自動発行する
 make cf-stage-migrate      # D1 にマイグレーションを適用
 ```
 
-`stage-deploy-dry` が出すもの:
+`stage-deploy` / `stage-deploy-dry` / CI はいずれも **`make check-stage-config` を先に通します**
+（`scripts/check-stage-config.ts`）。人の目視に頼らず、問題があれば deploy 前に止まります。
 
-- **`[env.stage]` の routes**（設定ファイルをそのまま表示）— 本番ドメインが混ざっていないか。
-  wrangler の `--dry-run` は routes を出力しないため、設定ファイルを直接見て確認する
-- **bindings 一覧**（`wrangler --dry-run`）— `pagebox-stage` / `pagebox-blobs-stage` /
-  `pagebox_events_stage` を指しているか。ここに本番のリソース名が出たら止める
+検証している内容:
+
+1. `[env.stage].routes` が期待する2ホストと**完全一致**し、すべて `custom_domain` である
+2. stage の routes が**本番の routes と重複しない**
+3. `TODO_` プレースホルダが残っていない（未セットアップのまま deploy させない）
+4. D1 / KV / R2 / Analytics / rate limit の各 binding が**本番と別の実体**を指している
+   （定義漏れも検出する。非継承なら binding 欠落、継承されるなら本番共有になるため）
+5. `APP_ORIGIN` / `VIEW_ORIGIN` のホスト名が stage の routes と一致している
+6. stage で `workers_dev` / `preview_urls` が無効になっている
+
+この判定は `bun test`（`scripts/check-stage-config.test.ts`）で回帰テストしてあります。
+「stage の routes を本番ドメインに書き換えたら落ちる」ことも含めてテスト済みです。
+
+そのうえで `wrangler --dry-run` が bindings の実値を出すので、`pagebox-stage` /
+`pagebox-blobs-stage` / `pagebox_events_stage` を指していることも目視できます
+（wrangler の `--dry-run` は routes を出力しないため、routes は上記ガードが受け持ちます）。
 
 ### 5. 本番が無傷であることを確認
 
@@ -121,7 +140,8 @@ wrangler の `routes` は **inheritable** で、`[env.stage]` に書かないと
 `wrangler deploy --env stage` が**本番のカスタムドメインを stage worker に奪わせる**。
 
 `wrangler.toml` の `[env.stage]` では routes を必ず明示している。設定を触るときはここを崩さないこと。
-`stage-deploy` の前に `stage-deploy-dry` を通すのはこの事故を防ぐため（CI でも routes 表示と dry-run を先に走らせている）。
+崩したら **`make check-stage-config` が落ちて deploy に進めない**（ローカルの `make stage-deploy` も
+CI の stage workflow も同じゲートを通る）。
 
 同じ理由で、本番側にも `workers_dev = false` / `preview_urls = false` を明示して現状を固定してある。
 

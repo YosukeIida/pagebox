@@ -6,6 +6,8 @@
     "dev": "bun run --watch src/entries/bun.ts",
     "start": "bun run src/entries/bun.ts",
     "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "check:stage-config": "bun run scripts/check-stage-config.ts",
     "build:ds-cards": "bun run scripts/build-ds-cards.tsx",
     "db:generate": "drizzle-kit generate",
     "build:worker": "mkdir -p dist/static && bun build src/http/web/client.ts --outfile dist/static/app.js --target browser && bun run scripts/build-css.ts",
