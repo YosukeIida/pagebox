@@ -1,4 +1,6 @@
 import type { AdminStats } from "../../ports/admin-repository";
+import type { Origins } from "../../core/urls";
+import { viewUrl } from "../../core/urls";
 import { SiteHeader } from "./components/SiteHeader";
 import { StatCard } from "./components/StatCard";
 import { Badge } from "./components/Badge";
@@ -76,10 +78,11 @@ export interface DashboardProps {
   analytics: AnalyticsData | null;
   logins: LoginEntry[] | null;
   system: SystemData | null;
+  origins: Origins;
 }
 
 export function DashboardPage(props: DashboardProps) {
-  const { stats, analytics, logins, system } = props;
+  const { stats, analytics, logins, system, origins } = props;
   const totalViews = analytics?.totalViews ?? null;
 
   return (
@@ -149,7 +152,7 @@ export function DashboardPage(props: DashboardProps) {
                     <tr key={d.slug}>
                       <td>
                         <a
-                          href={`https://view.pagebox.iodine2.net/${d.slug}`}
+                          href={viewUrl(origins, d.slug)}
                           target="_blank"
                           rel="noopener noreferrer"
                           class="doc-link"
@@ -189,7 +192,7 @@ export function DashboardPage(props: DashboardProps) {
                         {analytics.topDocuments.map((v) => (
                           <tr key={v.slug}>
                             <td>
-                              <a href={`https://view.pagebox.iodine2.net/${v.slug}`} target="_blank" rel="noopener noreferrer" class="doc-link">
+                              <a href={viewUrl(origins, v.slug)} target="_blank" rel="noopener noreferrer" class="doc-link">
                                 {v.slug}
                               </a>
                             </td>

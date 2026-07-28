@@ -4,6 +4,11 @@ main = "../../src/entries/worker.ts"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 
+# workers.dev は無効。設定ファイルに明示して、deploy で意図せず再有効化されないようにする。
+# preview_urls の既定は workers_dev に従うが、こちらも明示しておく。
+workers_dev = false
+preview_urls = false
+
 routes = [
   { pattern = "pagebox.iodine2.net", custom_domain = true },
   { pattern = "view.pagebox.iodine2.net", custom_domain = true }
@@ -29,6 +34,10 @@ ACCESS_AUD = "4562908ad77043dc3e5b899bf2e0b28bd5efdc11c9faec799466a3cb566e61d6"
 CLOUDFLARE_ACCOUNT_ID = "3f018f156b32326977d5f0423da76cea"
 # ADMIN_EMAILS は secret として設定（make cf-secret-dashboard）
 # CLOUDFLARE_API_TOKEN も secret として設定（make cf-secret-dashboard）
+# 公開 URL のオリジン。src/core/urls.ts が組み立てに使い、worker はこの view ホストで
+# ビューア経路を判定する（直書きしないこと）
+APP_ORIGIN  = "https://pagebox.iodine2.net"
+VIEW_ORIGIN = "https://view.pagebox.iodine2.net"
 
 # OGP 画像キャッシュ用 KV（Feature 4 で使用）
 [[kv_namespaces]]
@@ -56,3 +65,62 @@ dataset = "pagebox_events"
 [[rules]]
 type = "CompiledWasm"
 globs = ["**/*.wasm"]
+
+# ══════════════════════════════════════════════════════════════════════════
+# stage 環境（worker 名は自動で "pagebox-stage" になる）
+#
+# 本番と同じ2ホスト構成を再現し、PR のコードを本番に入れる前に検証するための環境。
+# データ（D1 / R2 / KV）は stage 専用のものを1セット持ち、PR 間で共有する。
+# live は1つしか無いので、GitHub の `stage` ラベルで1 PR ずつ確保する運用にしている
+# （詳細は docs/deploy-stage.md）。
+#
+# ⚠️ routes は inheritable（環境に継承される）。ここで明示しないと
+#    `wrangler deploy --env stage` が本番のカスタムドメインを stage worker に奪わせる。
+#    初回は必ず --dry-run で routes を目視確認すること。
+# ══════════════════════════════════════════════════════════════════════════
+[env.stage]
+routes = [
+  { pattern = "stage.pagebox.iodine2.net", custom_domain = true },
+  { pattern = "view.stage.pagebox.iodine2.net", custom_domain = true }
+]
+workers_dev = false
+preview_urls = false
+
+# vars / kv_namespaces / r2_buckets / d1_databases は非継承なので環境ごとに再定義する。
+# analytics_engine_datasets と ratelimits は継承の分類が文書化されていないため、
+# 本番の値を共有してしまわないよう明示的に定義する。
+[env.stage.vars]
+ACCESS_TEAM_DOMAIN    = "i2net.cloudflareaccess.com"
+# stage 用 Access アプリ（stage.pagebox.iodine2.net）の aud を入れる
+ACCESS_AUD            = "TODO_STAGE_ACCESS_AUD"
+CLOUDFLARE_ACCOUNT_ID = "3f018f156b32326977d5f0423da76cea"
+APP_ORIGIN            = "https://stage.pagebox.iodine2.net"
+VIEW_ORIGIN           = "https://view.stage.pagebox.iodine2.net"
+
+[[env.stage.d1_databases]]
+binding = "DB"
+database_name = "pagebox-stage"
+# make cf-stage-d1-create の出力を貼る
+database_id = "TODO_STAGE_D1_DATABASE_ID"
+# 本番と同じ migration を適用する（マイグレーションのリハーサル用）
+migrations_dir = "migrations"
+
+[[env.stage.kv_namespaces]]
+binding = "OG_CACHE_KV"
+# make cf-stage-kv-create の出力を貼る
+id = "TODO_STAGE_KV_NAMESPACE_ID"
+
+[[env.stage.r2_buckets]]
+binding = "STORAGE"
+bucket_name = "pagebox-blobs-stage"
+
+# 本番の閲覧・アップロード集計を汚さないよう別データセットにする
+[[env.stage.analytics_engine_datasets]]
+binding = "ANALYTICS"
+dataset = "pagebox_events_stage"
+
+# 本番（10001）とレート制限のカウンタを分ける
+[[env.stage.ratelimits]]
+name = "RATE_LIMITER"
+namespace_id = "10002"
+simple = { limit = 5, period = 60 }

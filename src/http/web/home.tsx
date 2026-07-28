@@ -1,4 +1,6 @@
 import type { DocumentMeta } from "../../core/document";
+import type { Origins } from "../../core/urls";
+import { viewUrl } from "../../core/urls";
 import { SiteHeader } from "./components/SiteHeader";
 import { Button } from "./components/Button";
 import { DropZone } from "./components/DropZone";
@@ -16,7 +18,7 @@ function formatDate(d: Date): string {
   return d.toLocaleDateString("ja-JP", { year: "numeric", month: "short", day: "numeric" });
 }
 
-export function HomePage(props: { documents: DocumentMeta[]; email: string }) {
+export function HomePage(props: { documents: DocumentMeta[]; email: string; origins: Origins }) {
   return (
     <div>
       <SiteHeader email={props.email} />
@@ -62,10 +64,10 @@ export function HomePage(props: { documents: DocumentMeta[]; email: string }) {
                 meta={`${formatDate(doc.createdAt)} · ${formatSize(doc.size)}`}
                 actions={
                   <>
-                    <Button variant="secondary" href={`https://view.pagebox.iodine2.net/${doc.slug}`} target="_blank" rel="noopener noreferrer">
+                    <Button variant="secondary" href={viewUrl(props.origins, doc.slug)} target="_blank" rel="noopener noreferrer">
                       開く
                     </Button>
-                    <Button variant="secondary" data-copy-url={`https://view.pagebox.iodine2.net/${doc.slug}`}>
+                    <Button variant="secondary" data-copy-url={viewUrl(props.origins, doc.slug)}>
                       URLコピー
                     </Button>
                     <Button variant="danger" data-delete-slug={doc.slug}>

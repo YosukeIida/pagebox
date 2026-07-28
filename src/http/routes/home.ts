@@ -14,7 +14,7 @@ export function homeRoutes(deps: AppDeps): Hono {
   app.get("/", requireAuth(deps) as any, async (c) => {
     const { groupId, email } = c.get("authContext");
     const docs = await listDocuments({ repo: deps.repo }, groupId);
-    const content = HomePage({ documents: docs, email });
+    const content = HomePage({ documents: docs, email, origins: deps.origins });
     const page = Layout({ title: "pagebox", children: content });
     return c.html(page as unknown as string);
   });

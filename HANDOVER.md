@@ -76,15 +76,29 @@ cp .env.cloudflare.example .env.cloudflare
 make dev          # http://localhost:3000 で起動（ソースをマウント + watch）
 make dev-down     # 停止
 make typecheck    # 型チェック
+make test         # bun test（core/urls.ts と stage 設定ガードの回帰テスト）
 ```
 
 ### Cloudflare デプロイ
 
 ```bash
-make deploy                  # ビルド（Bun）→ wrangler deploy（Node.js）
-make cf-d1-migrate           # D1 マイグレーション適用（スキーマ変更時のみ）
+make deploy                  # 本番へ: ビルド（Bun）→ wrangler deploy（Node.js）
+make cf-d1-migrate           # 本番 D1 マイグレーション適用（スキーマ変更時のみ）
 make backfill-description    # description が null のドキュメントを R2 から再抽出して D1 更新
 ```
+
+### stage デプロイ
+
+```bash
+make check-stage-config      # stage 設定が本番から分離されているかを検証（deploy 経路は必ずこれを通る）
+make stage-deploy-dry        # 上記 + wrangler --dry-run
+make stage-deploy            # stage へ deploy
+make cf-stage-migrate        # stage D1 マイグレーション適用（共有 DB なので手動のみ）
+make cf-stage-reset          # stage D1 を初期化して作り直す
+```
+
+通常は PR に **`stage` ラベル**を付ければ CI が自動で deploy する。手順の詳細は
+[docs/deploy-stage.md](docs/deploy-stage.md)。
 
 ### ブランチ運用
 
@@ -120,6 +134,20 @@ Zone: Workers Routes Edit（iodine2.net）
 | `PAGEBOX_DEV_EMAIL` | `dev@localhost` | ローカル開発時の固定ユーザー |
 | `STORAGE_DRIVER` | `fs` | `fs` のみ実装済み |
 | `DB_DRIVER` | `sqlite` | `sqlite` のみ実装済み |
+| `PAGEBOX_APP_ORIGIN` | `http://localhost:$PORT` | 管理画面のオリジン（`src/core/urls.ts` が使う） |
+| `PAGEBOX_VIEW_ORIGIN` | `http://localhost:$PORT` | 閲覧オリジン。ローカルには view ホストが無いため既定は app と同じ |
+
+### Workers（`wrangler.toml` の vars。環境ごとに値が違う）
+
+| 変数 | 本番 | stage |
+|---|---|---|
+| `APP_ORIGIN` | `https://pagebox.iodine2.net` | `https://stage.pagebox.iodine2.net` |
+| `VIEW_ORIGIN` | `https://view.pagebox.iodine2.net` | `https://view.stage.pagebox.iodine2.net` |
+| `ACCESS_AUD` | 本番 Access アプリの aud | stage Access アプリの aud |
+
+**公開 URL をコードに直書きしないこと。** `src/core/urls.ts` の `viewUrl()` / `ogImageUrl()` を通し、
+オリジンは上記 vars から注入する。worker のビューア判定も `VIEW_ORIGIN` のホスト名との完全一致で行う
+（以前の `startsWith("view.")` は `view.stage.…` を誤って拾うため廃止した）。
 
 ---
 
@@ -181,15 +209,45 @@ resvg に渡すフォント（Noto Sans JP 900/400）は `cdn.jsdelivr.net` か�
 
 ## Cloudflare リソース一覧
 
+### 本番
+
 | リソース | 名前/ID |
 |---|---|
 | Workers スクリプト | `pagebox` |
 | D1 データベース | `pagebox`（ID: `a7f4472c-ec7e-4108-b431-e8223a744803`） |
 | R2 バケット | `pagebox-blobs` |
 | KV Namespace | `OG_CACHE_KV`（ID: `098954f448404ba68b3877a08489613c`、Feature 4 OGP キャッシュ用） |
+| Analytics Engine | `pagebox_events` |
+| Rate limit namespace | `10001` |
 | カスタムドメイン | `pagebox.iodine2.net`（管理画面）/ `view.pagebox.iodine2.net`（HTML 閲覧） |
 | Cloudflare Access | `pagebox`（Allow）/ `pagebox-viewer`（Bypass, `/d` パス） |
-| workers.dev | 無効化済み |
+| workers.dev | 無効化済み（`workers_dev = false` を wrangler.toml に明示） |
+
+### stage
+
+PR のコードを本番前に検証する環境。**構成・セットアップ手順・運用ルールは
+[docs/deploy-stage.md](docs/deploy-stage.md) が正**。
+
+| リソース | 名前/ID |
+|---|---|
+| Workers スクリプト | `pagebox-stage`（`[env.stage]` から自動命名） |
+| D1 データベース | `pagebox-stage`（ID は wrangler.toml に記入） |
+| R2 バケット | `pagebox-blobs-stage` |
+| KV Namespace | `OG_CACHE_KV`（stage 用 ID） |
+| Analytics Engine | `pagebox_events_stage` |
+| Rate limit namespace | `10002` |
+| カスタムドメイン | `stage.pagebox.iodine2.net` / `view.stage.pagebox.iodine2.net` |
+| Cloudflare Access | `pagebox-stage`（Allow）/ `pagebox-stage-viewer`（Bypass） |
+
+- **`stage` ラベルを付けた PR が stage を占有する。** 他 PR が確保中なら CI が落ちる
+- **D1 / R2 / KV は PR 間で共有**（PR ごとに DB は作らない）。壊れたら `make cf-stage-reset`
+- **マイグレーションは CI では流さない**。`make cf-stage-migrate` を手動実行する
+- **`CLOUDFLARE_API_TOKEN` は stage に置かない**ため `/admin` の外部 API 由来パネルは空欄になる
+
+> ⚠️ wrangler の `routes` は環境に**継承される**。`[env.stage]` の routes を消すと
+> `deploy --env stage` が本番のカスタムドメインを奪う。これを防ぐため
+> `scripts/check-stage-config.ts` が routes の一致・binding の本番重複・`TODO_` の残りを検証し、
+> **ローカルの `make stage-deploy` と CI の両方が deploy 前にこのゲートを通る**（fail closed）。
 
 ---
 

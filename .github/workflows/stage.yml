@@ -1,0 +1,128 @@
+name: stage
+
+# stage 環境（stage.pagebox.iodine2.net）へのデプロイ。
+#
+# stage は live が1つしか無く、D1 / R2 / KV も PR 間で共有する。そのため
+# 「`stage` ラベルを付けた PR だけ」がデプロイ対象になり、複数 PR が同時に
+# ラベルを持っていたらガードで落とす（= ラベルが stage の占有権になる）。
+# 詳細は docs/deploy-stage.md。
+#
+# workflow_dispatch は意図的に用意しない。手動実行は job 条件と占有ガードを
+# 迂回して任意ブランチを stage に流せてしまうため。ローカルからの deploy が
+# 必要なら `make stage-deploy`（同じ設定ガードを通る）を使う。
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
+
+# stage は1つしかないので、実行はグローバルに直列化する（打ち切らない）
+concurrency:
+  group: stage-deploy
+  cancel-in-progress: false
+
+# pipefail を全ステップに効かせる（パイプ途中の失敗を見逃さない）
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  deploy:
+    # ラベルが付いている PR のみ。fork からの PR は secrets が使えないので対象外。
+    # labeled イベントは `stage` ラベルが付いたときだけ通す（無関係なラベル追加で再 deploy させない）。
+    if: >
+      contains(github.event.pull_request.labels.*.name, 'stage') &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      (github.event.action != 'labeled' || github.event.label.name == 'stage')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      # 他の open PR が stage を確保していないか確認する。
+      # 確保中なら「誰が使っているか」を示して落とす（黙って上書きしない）。
+      # API 取得の失敗と「該当なし」を分けて扱い、障害時に fail-open しないようにする。
+      - name: guard — stage の占有を確認
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+
+          # ここが失敗したら set -e で job を落とす（API 障害を「空き」と解釈しない）
+          labelled=$(gh pr list --label stage --state open --json number --jq '.[].number')
+
+          # 自分自身を除外する。値は整数のみなので単語分割で安全に回せる。
+          # パイプを使わないので「該当なし」を || true で潰す必要がなく、
+          # 番号の区切り（#12 #34）も保たれる。
+          others=""
+          for n in $labelled; do
+            [ "$n" = "$PR" ] && continue
+            others="${others}#${n} "
+          done
+          others="${others% }"
+
+          if [ -n "$others" ]; then
+            echo "::error::stage は PR ${others} が使用中です。先方の stage ラベルを外してから再実行してください。"
+            exit 1
+          fi
+          echo "stage は PR #${PR} が確保しました"
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - run: bun install --frozen-lockfile
+
+      # 本番奪取の事故防止。表示だけでは CI で誰も見ないため機械的に検証して fail closed にする。
+      # routes が期待する2ホストと一致するか、各 binding が本番と別の実体か、
+      # TODO_ が残っていないかを確認する（scripts/check-stage-config.ts）。
+      - name: stage 設定を検証（本番リソースを指していないこと）
+        run: bun run check:stage-config
+
+      - name: build worker assets
+        run: bun run build:worker
+
+      # 上の検証を通った設定で、wrangler 側の解釈も確認する（bindings の実値が出る）
+      - name: dry-run（bindings の確認）
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx --yes wrangler@4 deploy --env stage --dry-run --config deploy/cloudflare/wrangler.toml
+
+      - name: deploy to stage
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx --yes wrangler@4 deploy --env stage --config deploy/cloudflare/wrangler.toml
+
+      - name: サマリーに URL を出す
+        run: |
+          {
+            echo "### stage にデプロイしました"
+            echo ""
+            echo "- アプリ: https://stage.pagebox.iodine2.net"
+            echo "- 閲覧:   https://view.stage.pagebox.iodine2.net/<slug>"
+            echo ""
+            echo "マイグレーションが必要な変更を含む場合は \`make cf-stage-migrate\` を手動で実行してください（共有 DB のため CI では流しません）。"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # `stage` ラベルが付いた瞬間だけコメントする。
+      # 他のラベルを追加したときにも labeled は発火するのでラベル名で絞る。
+      - name: PR にコメント
+        if: github.event.action == 'labeled' && github.event.label.name == 'stage'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          cat > stage-comment.md <<'EOF'
+          この PR が stage を確保しました。以降の push は自動で stage に反映されます。
+
+          - アプリ: https://stage.pagebox.iodine2.net
+          - 閲覧: https://view.stage.pagebox.iodine2.net/&lt;slug&gt;
+
+          マイグレーションを含む変更は `make cf-stage-migrate` を手動で実行してください（stage の D1 は PR 間で共有しているため）。
+          確認が終わったら `stage` ラベルを外して次の PR に譲ってください。
+          EOF
+          gh pr comment "$PR" --body-file stage-comment.md

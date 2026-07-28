@@ -11,13 +11,15 @@ import { createCloudflareAnalytics } from "../adapters/analytics/cloudflare";
 import { createApp } from "../http/app";
 import { getDocument } from "../core/usecases/get-document";
 import type { DocumentMeta } from "../core/document";
+import type { Origins } from "../core/urls";
+import { ogImageUrl, viewHostname, viewUrl } from "../core/urls";
 import type { KVStore } from "../http/routes/og-image";
 
 function escapeAttr(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-function injectOgpTags(html: string, meta: DocumentMeta): string {
+function injectOgpTags(html: string, meta: DocumentMeta, origins: Origins): string {
   // 既存の og: / twitter: タグを除去してから Pagebox のタグを先頭に注入
   const stripped = html.replace(
     /<meta[^>]+(?:property=["']og:[^"']*["']|name=["']twitter:[^"']*["'])[^>]*\/?>/gi,
@@ -26,8 +28,8 @@ function injectOgpTags(html: string, meta: DocumentMeta): string {
   const ogTags = `<meta property="og:title" content="${escapeAttr(meta.title)}" />
 <meta property="og:description" content="${escapeAttr(meta.description ?? "")}" />
 <meta property="og:type" content="website" />
-<meta property="og:url" content="https://view.pagebox.iodine2.net/${escapeAttr(meta.slug)}" />
-<meta property="og:image" content="https://pagebox.iodine2.net/d/${escapeAttr(meta.slug)}/og.png" />
+<meta property="og:url" content="${escapeAttr(viewUrl(origins, meta.slug))}" />
+<meta property="og:image" content="${escapeAttr(ogImageUrl(origins, meta.slug))}" />
 <meta name="twitter:card" content="summary_large_image" />`;
   if (/<head[^>]*>/i.test(stripped))
     return stripped.replace(/<head[^>]*>/i, (m) => `${m}\n${ogTags}`);
@@ -56,15 +58,21 @@ interface Env {
   ADMIN_EMAILS: string;
   CLOUDFLARE_API_TOKEN: string;
   CLOUDFLARE_ACCOUNT_ID: string;
+  // 環境ごとの公開オリジン（本番 / stage で違う）
+  APP_ORIGIN: string;
+  VIEW_ORIGIN: string;
 }
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
     const startTime = Date.now();
+    const origins = { app: env.APP_ORIGIN, view: env.VIEW_ORIGIN };
 
-    // view.pagebox.iodine2.net → XSS 隔離済みビューア（認証不要）
-    if (url.hostname.startsWith("view.")) {
+    // view オリジン（XSS 隔離済みビューア・認証不要）。
+    // ホスト名の完全一致で判定する。prefix 判定（startsWith("view.")）だと
+    // view.stage.… のような別環境のホストまで拾ってしまい壊れやすい。
+    if (url.hostname === viewHostname(origins)) {
       if (url.pathname.startsWith("/static/")) {
         return env.ASSETS.fetch(request);
       }
@@ -75,7 +83,7 @@ export default {
       const r = await getDocument({ storage, repo }, slug);
       if (!r) return new Response("Not found", { status: 404 });
       const html = new TextDecoder().decode(r.data);
-      const injected = injectOgpTags(html, r.meta);
+      const injected = injectOgpTags(html, r.meta, origins);
       const response = new Response(injected, {
         headers: { "Content-Type": `${r.meta.contentType}; charset=utf-8` },
       });
@@ -112,7 +120,7 @@ export default {
       : { recordView() {}, recordUpload() {} };
     const adminEmails = env.ADMIN_EMAILS?.split(",").map((s) => s.trim()).filter(Boolean) ?? [];
     const app = createApp({
-      storage, repo, auth, userRepo, adminRepo, analytics, adminEmails,
+      storage, repo, auth, userRepo, adminRepo, analytics, adminEmails, origins,
       rateLimiter: env.RATE_LIMITER,
       ogCache: env.OG_CACHE_KV,
       cfApiToken: env.CLOUDFLARE_API_TOKEN,
