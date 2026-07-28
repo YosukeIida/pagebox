@@ -27,10 +27,12 @@ defaults:
 
 jobs:
   deploy:
-    # ラベルが付いている PR のみ。fork からの PR は secrets が使えないので対象外
+    # ラベルが付いている PR のみ。fork からの PR は secrets が使えないので対象外。
+    # labeled イベントは `stage` ラベルが付いたときだけ通す（無関係なラベル追加で再 deploy させない）。
     if: >
       contains(github.event.pull_request.labels.*.name, 'stage') &&
-      github.event.pull_request.head.repo.full_name == github.repository
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      (github.event.action != 'labeled' || github.event.label.name == 'stage')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -48,15 +50,21 @@ jobs:
         run: |
           set -euo pipefail
 
-          # ここが失敗したら set -e で job を落とす（空扱いにしない）
+          # ここが失敗したら set -e で job を落とす（API 障害を「空き」と解釈しない）
           labelled=$(gh pr list --label stage --state open --json number --jq '.[].number')
 
-          # 自分自身を除外する。grep の「該当なし」(exit 1) だけを許容する
-          others=$(printf '%s\n' "$labelled" | grep -vx "$PR" || true)
-          others=$(printf '%s' "$others" | tr -d '[:space:]' | tr '\n' ' ')
+          # 自分自身を除外する。値は整数のみなので単語分割で安全に回せる。
+          # パイプを使わないので「該当なし」を || true で潰す必要がなく、
+          # 番号の区切り（#12 #34）も保たれる。
+          others=""
+          for n in $labelled; do
+            [ "$n" = "$PR" ] && continue
+            others="${others}#${n} "
+          done
+          others="${others% }"
 
           if [ -n "$others" ]; then
-            echo "::error::stage は PR #${others} が使用中です。先方の stage ラベルを外してから再実行してください。"
+            echo "::error::stage は PR ${others} が使用中です。先方の stage ラベルを外してから再実行してください。"
             exit 1
           fi
           echo "stage は PR #${PR} が確保しました"
