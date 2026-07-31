@@ -37,13 +37,20 @@ export class FakeStorage implements StoragePort {
 export class FakeRepository implements DocumentRepository {
   readonly docs = new Map<string, DocumentMeta>();
   readonly versions: DocumentVersion[] = [];
-  // addVersion を失敗させる注入ポイント（DB 障害の再現）
+  // 書き込む前に失敗させる（DB に届かなかった障害の再現）
   failAddVersion?: (v: DocumentVersion) => boolean;
+  failSave?: (doc: DocumentMeta) => boolean;
+  // **書き込んだ後に**失敗させる（コミットしたがレスポンスが失われた障害の再現）。
+  // このとき blob を消してしまうと、参照されている blob を削除して恒久的に 404 になる。
+  throwAfterAddVersionCommit?: (v: DocumentVersion) => boolean;
+  throwAfterSaveCommit?: (doc: DocumentMeta) => boolean;
 
   async save(doc: DocumentMeta, first: DocumentVersion): Promise<void> {
+    if (this.failSave?.(doc)) throw new Error("save failed");
     if (this.docs.has(doc.slug)) throw new Error(`duplicate slug: ${doc.slug}`);
     this.docs.set(doc.slug, { ...doc });
     this.versions.push({ ...first });
+    if (this.throwAfterSaveCommit?.(doc)) throw new Error("save committed but response lost");
   }
 
   async addVersion(version: DocumentVersion): Promise<void> {
@@ -66,6 +73,9 @@ export class FakeRepository implements DocumentRepository {
       latestVersion: version.version,
       updatedAt: version.createdAt,
     });
+    if (this.throwAfterAddVersionCommit?.(version)) {
+      throw new Error("addVersion committed but response lost");
+    }
   }
 
   async findBySlug(slug: string): Promise<DocumentMeta | null> {

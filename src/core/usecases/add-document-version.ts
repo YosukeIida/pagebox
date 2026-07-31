@@ -80,13 +80,19 @@ export async function addDocumentVersion(
       await deps.repo.addVersion(version);
       return version;
     } catch (e) {
-      // 自分が書いた blob は参照されないので消す（put 成功後の DB 失敗による孤児を防ぐ）
+      // **blob を消す前に「自分の書き込みがコミットされたか」を確認する。**
+      // DB がコミットしたのにレスポンスだけ失われた場合、先に blob を消すと
+      // DB から参照されている blob を削除してその版が恒久的に 404 になる。
+      // キーは書き込みごとに一意なので、storageKey が自分のものなら自分の書き込み。
+      const landed = await deps.repo.findVersion(input.slug, next);
+      if (landed?.storageKey === key) return landed;
+
+      // 自分の書き込みは残っていないので blob を片付ける（孤児を防ぐ）
       await deps.storage.delete(key).catch(() => { /* 掃除の失敗で本来のエラーを隠さない */ });
 
-      // その版番号が本当に埋まったのかを確認する。
-      // 埋まっていなければ採番の競合ではない別の障害なので、そのまま投げる。
-      const taken = await deps.repo.findVersion(input.slug, next);
-      if (!taken) throw e;
+      // 版番号が埋まっていなければ採番の競合ではない別の障害なので、そのまま投げる
+      if (!landed) throw e;
+      // 他のリクエストがこの版を取った → 次の番号で再試行
     }
   }
 

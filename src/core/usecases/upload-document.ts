@@ -70,6 +70,16 @@ export async function uploadDocument(deps: UploadDeps, input: UploadInput): Prom
     createdBy: input.uploadedBy,
     sourceVersion: null,
   };
-  await deps.repo.save(meta, first);
+  try {
+    await deps.repo.save(meta, first);
+  } catch (e) {
+    // add-document-version と同じ理由で、blob を消す前にコミット済みかを確認する。
+    // キーは書き込みごとに一意なので、v1 の storageKey が自分のものなら自分の書き込み。
+    const landed = await deps.repo.findVersion(slug, 1);
+    if (landed?.storageKey === key) return meta;
+    // 参照されない blob を残さない
+    await deps.storage.delete(key).catch(() => { /* 掃除の失敗で本来のエラーを隠さない */ });
+    throw e;
+  }
   return meta;
 }

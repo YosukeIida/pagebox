@@ -71,6 +71,22 @@ describe("uploadDocument", () => {
     await expect(upload("a.html", html("t", "x"), "text/plain")).resolves.toBeDefined();
     await expect(upload("a.txt", html("t", "x"), "text/html")).resolves.toBeDefined();
   });
+
+  test("DB 書き込みが失敗したら自分が書いた blob を残さない", async () => {
+    repo.failSave = () => true;
+    await expect(upload()).rejects.toThrow("save failed");
+    expect(storage.objects.size).toBe(0);
+  });
+
+  // addVersion と同じく、コミット済みなら参照中の blob を消してはいけない
+  test("DB がコミット済みならエラーでも blob を残して成功を返す", async () => {
+    repo.throwAfterSaveCommit = () => true;
+    const meta = await upload();
+
+    const served = await getDocument(deps, meta.slug);
+    expect(served).not.toBeNull();
+    expect(new TextDecoder().decode(served!.data)).toContain("v1");
+  });
 });
 
 describe("addDocumentVersion", () => {
@@ -151,6 +167,23 @@ describe("addDocumentVersion", () => {
     await expect(addVersion(meta.slug, html("x", "y"))).rejects.toThrow("addVersion failed");
     // 孤児 blob が増えていないこと
     expect(new Set(storage.objects.keys())).toEqual(before);
+  });
+
+  // DB がコミットしたのにレスポンスだけ失われるケース。
+  // blob を先に消すと、DB から参照されている blob を削除してその版が恒久的に 404 になる。
+  test("DB がコミット済みならエラーでも参照中の blob を消さず成功として扱う", async () => {
+    const meta = await upload();
+    repo.throwAfterAddVersionCommit = (v) => v.version === 2;
+
+    const v2 = await addVersion(meta.slug, html("定例レポート", "<h1>v2 の中身</h1>"));
+    expect(v2.version).toBe(2);
+
+    // 版が配信できること（blob が消えていない）
+    const served = await getDocument(deps, meta.slug, 2);
+    expect(served).not.toBeNull();
+    expect(new TextDecoder().decode(served!.data)).toContain("v2 の中身");
+    // 版が二重に作られていないこと
+    expect((await repo.listVersions(meta.slug)).map((v) => v.version)).toEqual([2, 1]);
   });
 });
 
