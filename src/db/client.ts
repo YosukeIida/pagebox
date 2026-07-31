@@ -48,7 +48,7 @@ export function createDb(path: string) {
     content_type   TEXT    NOT NULL,
     storage_key    TEXT    NOT NULL,
     created_at     INTEGER NOT NULL,
-    created_by     TEXT    NOT NULL REFERENCES users(id),
+    created_by     TEXT    NOT NULL,
     source_version INTEGER,
     PRIMARY KEY (slug, version)
   );`);

@@ -148,12 +148,20 @@ flowchart TD
 ### 3. OGP 画像が SNS 等で表示される流れ
 
 1. SNS クローラーが `https://view.pagebox.iodine2.net/:slug`（または `/:slug/vN`）の HTML を取得。
-2. HTML の `<meta property="og:image">` が `https://pagebox.iodine2.net/d/:slug/og.png`（版固定なら `/d/:slug/vN/og.png`）を指す。タイトル・説明文は**閲覧している版**のもの。
-3. クローラーが OGP 画像をリクエスト。
-4. `ogImageRoute` はまず対象の版を解決し（未指定なら `documents.latest_version`）、`{slug}:v{version}` のキーで KV キャッシュを確認する。ヒット時はキャッシュ済み PNG を返す（`Cache-Control: public, max-age=604800`）。
-5. キャッシュミスの場合、その版のタイトルから SVG を生成して resvg-wasm で PNG にラスタライズ。KV に 7 日間キャッシュして返す。
+2. HTML の `<meta property="og:image">` は **常に版固定 URL** `https://pagebox.iodine2.net/d/:slug/v{実際の版}/og.png` を指す（最新版を見ているときも版を付ける）。タイトル・説明文は**閲覧している版**のもの。
+3. `<meta property="og:url">` は**要求された URL の形**を反映する。`/:slug` を開けば `/:slug`、`/:slug/v2` を開けば `/:slug/v2`。
+4. クローラーが OGP 画像をリクエストする。
+5. `ogImageRoute` はまず対象の版を解決し（未指定なら `documents.latest_version`）、`{slug}:v{version}` のキーで KV キャッシュを確認する。ヒット時はキャッシュ済み PNG を返す（`Cache-Control: public, max-age=604800`）。
+6. キャッシュミスの場合、その版のタイトルから SVG を生成して resvg-wasm で PNG にラスタライズ。KV に 7 日間キャッシュして返す。
 
-> キーを版ごとに分けているため、ドキュメントを更新しても古いタイトルの画像が返ることはない。
+> **なぜ最新版でも `og:image` に版を付けるのか。**
+> 画像レスポンスは `max-age=604800`（7日）なので、最新版で `/d/:slug/og.png` を出すと
+> **版を更新しても URL が変わらず、CDN・SNS・ブラウザのキャッシュに Worker が到達できない**。
+> KV のキーを `{slug}:v{version}` に分けても効くのは内部キャッシュだけで、外部キャッシュは
+> 最大7日間古い画像を返し続ける。版ごとに URL を変えることで必ず再取得される。
+>
+> 同じ理由で `og:url` も `documents.latest_version` との比較で推測せず、要求された版から決める。
+> 推測すると、版固定 URL を共有したのにプレビューが最新版 URL を指してしまう。
 
 ### 4. 管理者がダッシュボードを閲覧
 

@@ -122,9 +122,14 @@
     });
   }
 
-  // 送信先を決める。戻り値は askUpdateChoice と同じ規約。
-  async function resolveUploadTarget(file: File): Promise<string | null> {
+  // 送信先を決める。
+  // target: null = キャンセル / "" = 新規公開 / slug = その slug の新しいバージョン
+  // checkFailed: 候補判定そのものが失敗した（新規として続行するが、ユーザーに伝える）
+  async function resolveUploadTarget(
+    file: File,
+  ): Promise<{ target: string | null; checkFailed: boolean }> {
     let data: { candidatesHtml?: string } | null = null;
+    let checkFailed = false;
     try {
       const res = await fetch("/api/upload/check", {
         method: "POST",
@@ -136,11 +141,15 @@
         }),
       });
       if (res.ok) data = await res.json();
+      else checkFailed = true;
     } catch {
-      // 判定に失敗しても新規アップロードとして続行する
+      checkFailed = true;
     }
-    if (!data || !data.candidatesHtml) return "";
-    return askUpdateChoice(data.candidatesHtml);
+
+    // 判定に失敗してもアップロードは止めない（一時的な失敗で公開できなくなる方が損）。
+    // ただし黙って新規扱いにはせず、結果表示でその旨を伝える。
+    if (!data || !data.candidatesHtml) return { target: "", checkFailed };
+    return { target: await askUpdateChoice(data.candidatesHtml), checkFailed: false };
   }
 
   async function uploadFile(file: File) {
@@ -149,7 +158,7 @@
       return;
     }
 
-    const target = await resolveUploadTarget(file);
+    const { target, checkFailed } = await resolveUploadTarget(file);
     if (target === null) return; // キャンセル
 
     const form = new FormData();
@@ -161,7 +170,12 @@
       const res = await fetch(endpoint, { method: "POST", body: form });
       const data = await res.json();
       if (res.status === 201) {
-        reloadWithFlash(data.url, target ? `v${data.version} を公開しました` : "公開しました");
+        const message = checkFailed
+          ? "既存ドキュメントの確認に失敗したため新規として公開しました"
+          : target
+            ? `v${data.version} を公開しました`
+            : "公開しました";
+        reloadWithFlash(data.url, message);
       } else {
         showError(data.error ?? "アップロードに失敗しました");
       }

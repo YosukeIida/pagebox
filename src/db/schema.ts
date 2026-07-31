@@ -48,7 +48,8 @@ export const documentVersions = sqliteTable("document_versions", {
   contentType: text("content_type").notNull(),
   storageKey: text("storage_key").notNull(),
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
-  createdBy: text("created_by").notNull().references(() => users.id),
+  // users への FK は張らない（documents.uploaded_by と対称。理由は 0004_versions.sql のコメント）
+  createdBy: text("created_by").notNull(),
   // 「この版に戻す」で複製した元の版番号。null は新規アップロード。
   sourceVersion: integer("source_version"),
 }, (t) => ({ pk: primaryKey({ columns: [t.slug, t.version] }) }));

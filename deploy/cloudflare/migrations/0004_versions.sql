@@ -10,7 +10,10 @@ CREATE TABLE IF NOT EXISTS document_versions (
   content_type   TEXT    NOT NULL,
   storage_key    TEXT    NOT NULL,
   created_at     INTEGER NOT NULL,
-  created_by     TEXT    NOT NULL REFERENCES users(id),
+  -- users(id) への FK は張らない: documents.uploaded_by 自体が FK 無しで
+  -- 認証導入前の行に空文字が入り得るため（0002 が DEFAULT '' で追加）、
+  -- FK を張ると backfill が FK 違反で migration 全体を巻き戻してしまう。
+  created_by     TEXT    NOT NULL,
   source_version INTEGER,
   PRIMARY KEY (slug, version)
 );

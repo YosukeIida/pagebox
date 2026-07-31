@@ -63,7 +63,7 @@ export default {
       const storage = createR2Storage(env.STORAGE);
       const r = await getDocument({ storage, repo }, slug, version);
       if (!r) return new Response("Not found", { status: 404 });
-      const response = renderViewerResponse(r, origins);
+      const response = renderViewerResponse(r, origins, version);
       // Analytics Engine に閲覧イベントを記録（fire-and-forget）
       if (env.ANALYTICS) {
         const analytics = createCloudflareAnalytics(env.ANALYTICS);

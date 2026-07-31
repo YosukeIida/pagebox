@@ -17,6 +17,8 @@ import { VersionRow } from "./components/VersionRow";
 import { ChoiceDialog } from "./components/ChoiceDialog";
 import { UpdateChoices } from "./components/UpdateChoices";
 import type { DocumentMeta } from "../../core/document";
+import type { Origins } from "../../core/urls";
+import { viewUrl } from "../../core/urls";
 
 // camelCase → kebab-case（css.ts の kebab と同一規則）。CSS 変数名の生成に使う。
 function kebab(key: string): string {
@@ -194,10 +196,16 @@ const SAMPLE_DATES = [
   new Date("2026-07-20T18:40:00+09:00"),
 ];
 
+// 見本用のオリジン。実画面では AppDeps.origins（env 由来）が入る。
+// 見本でも URL は直書きせず viewUrl() を通す（stage で本番 URL を出さないための規約）。
+const SAMPLE_ORIGINS: Origins = {
+  app: "https://pagebox.example",
+  view: "https://view.pagebox.example",
+};
+
 export function SharePopoverExample() {
-  const url = "https://view.pagebox.iodine2.net/abc123";
   return (
-    <SharePopover url={url}>
+    <SharePopover url={viewUrl(SAMPLE_ORIGINS, "abc123")}>
       <VersionList currentVersion={3}>
         <VersionRow
           version={3}
@@ -267,7 +275,7 @@ export function UiPatternExamples() {
       </DropZone>
       <ResultBox>
         <span class="result-url">
-          <a href="#">https://view.pagebox.iodine2.net/abc123</a>
+          <a href="#">{viewUrl(SAMPLE_ORIGINS, "abc123")}</a>
         </span>
         <Button variant="primary" type="button">コピー</Button>
       </ResultBox>

@@ -18,7 +18,7 @@ export function devViewerRoutes(deps: AppDeps): Hono {
   async function serve(slug: string, version?: number) {
     const r = await getDocument({ storage: deps.storage, repo: deps.repo }, slug, version);
     if (!r) return null;
-    return renderViewerResponse(r, deps.origins);
+    return renderViewerResponse(r, deps.origins, version);
   }
 
   app.get("/:slug", async (c) => {

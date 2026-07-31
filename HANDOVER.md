@@ -32,7 +32,7 @@ pagebox/
 │   └── pagebox-intro.html      # pagebox 紹介ページ（pagebox 自体にアップロード）
 ├── scripts/
 │   ├── setup-cloudflare-access.mjs  # Cloudflare Access アプリ API 構築スクリプト
-│   └── backfill-description.mjs     # description が null の既存ドキュメントを再抽出して D1 更新
+│   └── check-stage-config.ts        # stage 設定が本番から分離されているかの deploy 前ゲート
 ├── src/
 │   ├── core/                   # ビジネスロジック（外部依存なし）
 │   ├── ports/                  # インターフェース定義
@@ -87,7 +87,6 @@ make test         # bun test（core/urls.ts と stage 設定ガードの回帰�
 ```bash
 make deploy                  # 本番へ: ビルド（Bun）→ wrangler deploy（Node.js）
 make cf-d1-migrate           # 本番 D1 マイグレーション適用（スキーマ変更時のみ）
-make backfill-description    # description が null のドキュメントを R2 から再抽出して D1 更新
 ```
 
 ### stage デプロイ
@@ -182,11 +181,20 @@ document_versions  … 版の実体（append-only）。PK は (slug, version)
 - **共有 URL は常に最新版を配信する**（`documents.latest_version`）。過去版は `/:slug/vN` の固定 URL。
 - **「この版に戻す」は append-only**。指定した版の中身を複製して新しい最新版として公開するので、過去の版は消えず、戻した操作自体も履歴に残る。
 - **バージョンは無制限に保持する**（自動 prune なし）。そのため admin の総サイズは `document_versions` 基準で集計している。
-- **blob キーは版ごとに独立**: 新規は `{slug}-v{N}.html`（`core/document.ts` の `versionStorageKey`）。
+- **blob キーは書き込みごとに独立**: 新規は `{slug}-v{N}-{ランダム8文字}.html`（`core/document.ts` の `versionStorageKey`）。
+  ランダム部分を入れているのは**同時更新対策**。同じ slug へ同時に版を追加すると両者が同じ版番号を狙うが、
+  版番号は PK で片方しか成功しない。キーを共有していると**後の put が先の put を上書きして
+  「DB は勝者のメタデータ・blob は敗者の中身」という食い違い**が起きる。キーを分ければ
+  負けた側は参照されない blob を残すだけで済む（`add-document-version.ts` が補償削除して再採番する）。
   バージョン管理導入前の既存オブジェクトは `{slug}.html` のままで、`0004_versions.sql` の backfill が
   それを v1 の `storage_key` として登録する（**R2 のオブジェクト移動は不要**）。
   → 読み出し側は `${slug}.html` を組み立てず、**必ず `document_versions.storage_key` を経由すること**。
 - **キーにパス区切りを使わない**のは `adapters/storage/fs.ts` がフラットな名前空間しか許さないため（traversal 対策）。
+- **削除は DB を先に、blob を後に**消す。逆順だと blob 削除の途中失敗で「DB にはあるのに配信は 404」の
+  壊れたドキュメントができる。DB を先に消せば残るのは参照されない blob だけで実害がない。
+- **`document_versions.created_by` に `users(id)` への FK は張っていない。** `documents.uploaded_by` 自体が
+  FK 無しで、認証導入前の行に空文字が入り得る（`0002` が `DEFAULT ''` で追加）ため、FK を張ると
+  backfill が FK 違反で migration 全体を巻き戻してしまう。
 
 ---
 
@@ -300,6 +308,8 @@ PR のコードを本番前に検証する環境。**構成・セットアップ
 | **ページネーション** | ドキュメントが増えたときの一覧パフォーマンス対策 |
 | **特定版へのピン留め** | Claude Code artifact の「Always share latest version」トグル OFF 相当。共有 URL が指す版を最新以外に固定する。実装は `documents.pinned_version`（nullable）1列 + 配信側の 1 分岐で足りるが、現状は「常に最新」に固定している |
 | **バージョン数の上限** | 現在は無制限。R2 使用量が問題になったら「上限 N 版を超えたら最古を prune」を入れる（admin の総バージョン数・総サイズで監視できる） |
+| **版一覧のページング / 非同期削除** | **保持が無制限なので、版が数千件になると O(N) の経路が Workers の制約に当たる**（`GET /docs/:slug/share` と `GET /api/documents/:slug/versions` は全版を返し、削除は全版の blob を直列に消す）。版一覧を cursor pagination にし、削除は Queue 等で再開可能な batch cleanup にする必要がある。PR #10 のレビュー（gpt-5.6-sol）で指摘され、別機能として移送した項目 |
+| **部分失敗の reconciler** | R2 put 後に DB が失敗した場合の孤児 blob は `add-document-version.ts` が自分の分を補償削除するが、プロセス落ち等には対応できない。`pending`/`ready`/`deleting` の状態と冪等な cleanup を入れると完全になる（同レビューで移送） |
 
 ### 優先度 低（Phase3）
 

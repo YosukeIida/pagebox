@@ -2,7 +2,7 @@ import type { StoragePort } from "../../ports/storage";
 import type { DocumentRepository } from "../../ports/repository";
 import type { DocumentMeta, DocumentVersion } from "../document";
 import { isHtmlUpload, deriveTitle, extractDescription, versionStorageKey, MAX_UPLOAD_BYTES } from "../document";
-import { generateSlug } from "../ids";
+import { generateSlug, nanoid } from "../ids";
 import { ValidationError } from "../errors";
 
 export interface UploadInput {
@@ -40,7 +40,7 @@ export async function uploadDocument(deps: UploadDeps, input: UploadInput): Prom
   }
   if (!slug) throw new Error("slug の採番に失敗しました");
 
-  const key = versionStorageKey(slug, 1);
+  const key = versionStorageKey(slug, 1, nanoid(8));
   await deps.storage.put(key, input.bytes, { contentType: "text/html" });
 
   const now = new Date();

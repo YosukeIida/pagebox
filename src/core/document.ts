@@ -37,8 +37,13 @@ export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 // 読み出し側はこの関数ではなく必ず version.storageKey を使うこと。
 // slug は [0-9a-z]{12}（core/ids.ts）なのでハイフンを含まず、旧キーとも衝突しない。
 // パス区切りを使わないのは fs アダプタがフラットな名前空間しか許さないため（traversal 対策）。
-export function versionStorageKey(slug: string, version: number): string {
-  return `${slug}-v${version}.html`;
+//
+// token は「書き込みごとに一意」な値を渡す。同じ slug へ同時に版を追加すると
+// 両者が同じ版番号を狙うことがあり、キーを共有すると **後の put が先の put を上書きして
+// DB のメタデータと blob の中身が食い違う**（版番号は PK で片方しか成功しないため）。
+// キーを書き込みごとに分ければ、負けた側は参照されない blob を残すだけで済む。
+export function versionStorageKey(slug: string, version: number, token: string): string {
+  return `${slug}-v${version}-${token}.html`;
 }
 
 export function isHtmlUpload(name: string, type: string): boolean {
