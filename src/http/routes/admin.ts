@@ -184,7 +184,7 @@ export function adminRoutes(deps: AppDeps): Hono {
 
     const stats = deps.adminRepo
       ? await deps.adminRepo.getStats()
-      : { userStats: [], recentDocs: [], totalDocCount: 0, totalSize: 0 };
+      : { userStats: [], recentDocs: [], totalDocCount: 0, totalVersionCount: 0, totalSize: 0 };
 
     const hasCfCreds = Boolean(deps.cfApiToken && deps.cfAccountId);
     const [analytics, logins, system] = hasCfCreds

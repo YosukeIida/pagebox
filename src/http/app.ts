@@ -9,7 +9,9 @@ import type { Origins } from "../core/urls";
 import { serveStyle, serveClientJs } from "./web/assets";
 import { homeRoutes } from "./routes/home";
 import { apiRoutes } from "./routes/api";
+import { docsRoutes } from "./routes/docs";
 import { viewerRoutes } from "./routes/viewer";
+import { devViewerRoutes } from "./routes/dev-viewer";
 import { ogImageRoute } from "./routes/og-image";
 import { adminRoutes } from "./routes/admin";
 import { styleguideRoutes } from "./routes/styleguide";
@@ -29,6 +31,9 @@ export interface AppDeps {
   adminRepo?: AdminRepository;
   cfApiToken?: string;
   cfAccountId?: string;
+  // 開発専用のビューア（/raw/:slug）を有効にする。XSS 隔離を破るため本番では絶対に立てない。
+  // container.ts（Bun）だけが PAGEBOX_DEV_VIEWER=1 のときに渡す。
+  devViewer?: boolean;
 }
 
 export function createApp(deps: AppDeps): Hono {
@@ -39,6 +44,7 @@ export function createApp(deps: AppDeps): Hono {
 
   app.route("/", homeRoutes(deps));
   app.route("/api", apiRoutes(deps));
+  app.route("/docs", docsRoutes(deps));
   if (deps.ogCache) {
     app.route("/d", ogImageRoute({ repo: deps.repo, ogCache: deps.ogCache }));
   }
@@ -47,6 +53,9 @@ export function createApp(deps: AppDeps): Hono {
     app.route("/admin", adminRoutes(deps));
   }
   app.route("/styleguide", styleguideRoutes(deps));
+  if (deps.devViewer) {
+    app.route("/raw", devViewerRoutes(deps));
+  }
 
   app.notFound((c) => c.text("Not found", 404));
 

@@ -14,6 +14,9 @@ services:
       DB_DRIVER: sqlite
       PAGEBOX_DEV_EMAIL: dev@localhost
       ADMIN_EMAILS: dev@localhost
+      # ローカルには view.* サブドメインが無いため、版別配信の確認用に /raw/:slug[/vN] を開ける。
+      # XSS 隔離を破るので本番（Workers）では絶対に有効化しない（worker.ts はこのフラグを渡さない）。
+      PAGEBOX_DEV_VIEWER: "1"
     command: sh -c "bun install && bun run dev"
 volumes:
   pagebox-data: {}

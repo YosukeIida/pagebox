@@ -47,9 +47,6 @@ cf-kv-create:
 cf-d1-migrate:
 	$(NODE_CF) npx --yes wrangler@4 d1 migrations apply pagebox --remote --config deploy/cloudflare/wrangler.toml
 
-backfill-description:
-	$(NODE_CF) node scripts/backfill-description.mjs
-
 # ── Cloudflare デプロイ ───────────────────────────────────
 deploy:
 	docker run --rm -v $(PWD):/app -w /app -v pagebox-bun-cache:/root/.bun oven/bun:1 bun run build:worker
@@ -101,5 +98,5 @@ cf-stage-reset:
 	  --command "DROP TABLE IF EXISTS document_versions; DROP TABLE IF EXISTS documents; DROP TABLE IF EXISTS user_groups; DROP TABLE IF EXISTS groups; DROP TABLE IF EXISTS users; DELETE FROM d1_migrations;"
 	$(MAKE) cf-stage-migrate
 
-.PHONY: dev dev-down typecheck test ds-cards cf-access-setup cf-d1-create cf-r2-create cf-kv-create cf-secret-aud cf-secret-dashboard cf-d1-migrate backfill-description deploy cf-dev \
+.PHONY: dev dev-down typecheck test ds-cards cf-access-setup cf-d1-create cf-r2-create cf-kv-create cf-secret-aud cf-secret-dashboard cf-d1-migrate deploy cf-dev \
 	cf-stage-d1-create cf-stage-r2-create cf-stage-kv-create cf-stage-secret check-stage-config stage-deploy-dry stage-deploy cf-stage-migrate cf-stage-reset

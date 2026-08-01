@@ -4,6 +4,7 @@ import { Resvg, initWasm } from "@resvg/resvg-wasm";
 // (dynamic instantiation via fetch is disallowed by the embedder)
 import resvgWasm from "@resvg/resvg-wasm/index_bg.wasm";
 import type { DocumentRepository } from "../../ports/repository";
+import type { DocumentVersion } from "../../core/document";
 import { colors } from "../../design/tokens";
 
 export interface KVStore {
@@ -115,41 +116,59 @@ function buildSvg(title: string): string {
 </svg>`;
 }
 
+const PNG_HEADERS = {
+  "Content-Type": "image/png",
+  "Cache-Control": "public, max-age=604800",
+};
+
+// 版ごとにタイトルが変わるため、キャッシュキーも版ごとに分ける。
+// 削除時の掃除は KV を列挙できないので DELETE /api/documents/:slug 側で行う。
+function cacheKey(slug: string, version: number): string {
+  return `${slug}:v${version}`;
+}
+
 export function ogImageRoute(deps: OgImageDeps): Hono {
   const app = new Hono();
 
-  app.get("/:slug/og.png", async (c) => {
-    const slug = c.req.param("slug");
-    const cached = await deps.ogCache.get(slug, "arrayBuffer");
-    if (cached) {
-      // document が削除済みなら KV を掃除して 404
-      const exists = await deps.repo.findBySlug(slug);
-      if (!exists) {
-        await deps.ogCache.delete(slug);
-        return c.notFound();
-      }
-      return c.newResponse(cached, 200, {
-        "Content-Type": "image/png",
-        "Cache-Control": "public, max-age=604800",
-      });
+  // requestedVersion 未指定なら最新版のカードを返す。
+  // 先に版を解決してからキャッシュを引くので、更新後に古いタイトルの画像が出ることはない。
+  async function render(slug: string, requestedVersion?: number): Promise<ArrayBuffer | null> {
+    let target: DocumentVersion | null;
+    if (requestedVersion === undefined) {
+      const meta = await deps.repo.findBySlug(slug);
+      if (!meta) return null;
+      target = await deps.repo.findVersion(slug, meta.latestVersion);
+    } else {
+      target = await deps.repo.findVersion(slug, requestedVersion);
     }
+    if (!target) return null;
 
-    const meta = await deps.repo.findBySlug(slug);
-    if (!meta) return c.notFound();
+    const key = cacheKey(slug, target.version);
+    const cached = await deps.ogCache.get(key, "arrayBuffer");
+    if (cached) return cached;
 
     const { fontBuffers } = await getResources();
-    const svg = buildSvg(meta.title);
+    const svg = buildSvg(target.title);
     const pngBuf = new Resvg(svg, {
       fitTo: { mode: "width", value: 1200 },
       font: { fontBuffers, defaultFontFamily: "Noto Sans JP" },
     }).render().asPng().buffer as ArrayBuffer;
 
-    await deps.ogCache.put(slug, pngBuf, { expirationTtl: CACHE_TTL });
+    await deps.ogCache.put(key, pngBuf, { expirationTtl: CACHE_TTL });
+    return pngBuf;
+  }
 
-    return c.newResponse(pngBuf, 200, {
-      "Content-Type": "image/png",
-      "Cache-Control": "public, max-age=604800",
-    });
+  app.get("/:slug/og.png", async (c) => {
+    const png = await render(c.req.param("slug"));
+    return png ? c.newResponse(png, 200, PNG_HEADERS) : c.notFound();
+  });
+
+  // 版固定の URL（/d/:slug/v2/og.png）。パターンは "v" + 数字のセグメントのみに限定する。
+  app.get("/:slug/:versionSegment{v[0-9]+}/og.png", async (c) => {
+    const version = Number(c.req.param("versionSegment").slice(1));
+    if (!Number.isSafeInteger(version) || version < 1) return c.notFound();
+    const png = await render(c.req.param("slug"), version);
+    return png ? c.newResponse(png, 200, PNG_HEADERS) : c.notFound();
   });
 
   return app;

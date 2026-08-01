@@ -3,20 +3,13 @@ import type { Origins } from "../../core/urls";
 import { viewUrl } from "../../core/urls";
 import { SiteHeader } from "./components/SiteHeader";
 import { Button } from "./components/Button";
+import { Badge } from "./components/Badge";
 import { DropZone } from "./components/DropZone";
 import { ResultBox } from "./components/ResultBox";
 import { ErrorMsg } from "./components/ErrorMsg";
 import { DocCard } from "./components/DocCard";
-
-function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function formatDate(d: Date): string {
-  return d.toLocaleDateString("ja-JP", { year: "numeric", month: "short", day: "numeric" });
-}
+import { ChoiceDialog } from "./components/ChoiceDialog";
+import { formatDate, formatSize } from "./format";
 
 export function HomePage(props: { documents: DocumentMeta[]; email: string; origins: Origins }) {
   return (
@@ -41,6 +34,7 @@ export function HomePage(props: { documents: DocumentMeta[]; email: string; orig
         </DropZone>
 
         <ResultBox id="result" hidden>
+          <span id="resultMsg" class="result-msg"></span>
           <div class="result-url">
             <a id="resultLink" href="#" target="_blank" rel="noopener noreferrer"></a>
           </div>
@@ -57,29 +51,46 @@ export function HomePage(props: { documents: DocumentMeta[]; email: string; orig
             </div>
           ) : (
             props.documents.map((doc) => (
-              <DocCard
-                id={`doc-${doc.slug}`}
-                key={doc.slug}
-                title={doc.title}
-                meta={`${formatDate(doc.createdAt)} · ${formatSize(doc.size)}`}
-                actions={
-                  <>
-                    <Button variant="secondary" href={viewUrl(props.origins, doc.slug)} target="_blank" rel="noopener noreferrer">
-                      開く
-                    </Button>
-                    <Button variant="secondary" data-copy-url={viewUrl(props.origins, doc.slug)}>
-                      URLコピー
-                    </Button>
-                    <Button variant="danger" data-delete-slug={doc.slug}>
-                      削除
-                    </Button>
-                  </>
-                }
-              />
+              // 共有ポップオーバーはカードの直下に絶対配置するため、カードごとに包む
+              <div class="doc-item" id={`doc-${doc.slug}`} key={doc.slug}>
+                <DocCard
+                  title={
+                    <>
+                      <span class="doc-title-text">{doc.title}</span>
+                      <Badge variant="version">v{doc.latestVersion}</Badge>
+                    </>
+                  }
+                  meta={`更新 ${formatDate(doc.updatedAt)} · ${formatSize(doc.size)} · ${doc.latestVersion} versions`}
+                  actions={
+                    <>
+                      <Button variant="secondary" data-share-slug={doc.slug} aria-expanded="false">
+                        共有
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        href={viewUrl(props.origins, doc.slug)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        開く
+                      </Button>
+                      <Button variant="danger" data-delete-slug={doc.slug}>
+                        削除
+                      </Button>
+                    </>
+                  }
+                />
+                {/* client.ts が GET /docs/:slug/share の fragment を差し込む */}
+                <div class="share-host hidden" id={`share-${doc.slug}`}></div>
+              </div>
             ))
           )}
         </div>
       </main>
+
+      {/* 同名 / 同 title 検出時の選択ダイアログ。選択肢は client.ts が
+          POST /api/upload/check の candidatesHtml で埋める（markup は UpdateChoices が正）。 */}
+      <ChoiceDialog id="updateDialog" hidden title="同じ名前のドキュメントがあります" confirmLabel="決定" />
     </div>
   );
 }

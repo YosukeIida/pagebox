@@ -143,6 +143,14 @@ body {
   flex-wrap: wrap;
 }
 
+/* 「v3 を公開しました」等の成功メッセージ（client.ts が textContent を入れる） */
+.result-msg {
+  font-size: var(--fs-base);
+  font-weight: var(--fw-semibold);
+  color: var(--success-fg);
+  flex-shrink: 0;
+}
+
 .result-url {
   flex: 1;
   min-width: 200px;
@@ -224,12 +232,20 @@ body {
 
 .doc-info { flex: 1; min-width: 0; }
 
+/* タイトル行。テキストだけを省略記号で切り、バージョンバッジは常に見える位置に置く */
 .doc-title {
   font-weight: var(--fw-semibold);
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-width: 0;
+  margin-bottom: var(--space-xs);
+}
+
+.doc-title-text {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  margin-bottom: var(--space-xs);
 }
 
 .doc-meta {
@@ -248,6 +264,216 @@ body {
   text-align: center;
   padding: var(--space-3xl) 0;
   color: var(--text-muted);
+}
+
+/* ===== Version management =====
+   共有ポップオーバー（Claude Code artifact の Share メニュー相当）とバージョン履歴。 */
+
+/* ポップオーバーの位置決めの基準。DocCard と .share-host を包む */
+.doc-item { position: relative; }
+
+/* カード直下に重ねる枠。中身は GET /docs/:slug/share の fragment */
+.share-host {
+  position: absolute;
+  top: calc(100% + var(--space-sm));
+  left: 0;
+  right: 0;
+  z-index: 20;
+}
+
+/* 位置決めは .share-host が持つのでパネル自体は静的配置（styleguide でもそのまま並ぶ） */
+.share-popover {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.share-url-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+}
+
+.share-url {
+  flex: 1;
+  min-width: 200px;
+  font-family: monospace;
+  font-size: var(--fs-base);
+  color: var(--accent);
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.share-url:hover { text-decoration: underline; }
+
+.version-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  border-top: 1px solid var(--border);
+  padding-top: var(--space-lg);
+}
+
+.version-list-heading {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.version-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+  padding: var(--space-sm) 0;
+}
+.version-row + .version-row { border-top: 1px solid var(--border); }
+
+.version-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.version-badge {
+  font-family: monospace;
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  padding: 0 var(--space-sm);
+  border-radius: var(--radius-pill);
+}
+
+/* 最新版（= 共有 URL が指している版）だけ accent で塗る */
+.version-row-latest .version-badge {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+.version-meta {
+  font-size: var(--fs-md);
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.version-current {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.version-actions {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* ===== Choice dialog（同名検出時の新規/更新の選択） ===== */
+
+.choice-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-lg);
+  background: var(--overlay);
+}
+
+/* 見本（styleguide / DesignSync）用: 画面を覆わずその場に置く */
+.choice-overlay-inline {
+  position: static;
+  inset: auto;
+  z-index: auto;
+  padding: 0;
+  background: none;
+}
+
+.choice-dialog {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: var(--space-xl);
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.choice-title {
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-bold);
+}
+
+.choice-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.choice-option {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-md);
+  padding: var(--space-md);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  cursor: pointer;
+}
+.choice-option:hover { border-color: var(--accent); }
+
+.choice-option-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+
+.choice-option-title {
+  font-weight: var(--fw-semibold);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.choice-option-meta {
+  font-size: var(--fs-md);
+  color: var(--text-muted);
+}
+
+.choice-option-note {
+  font-size: var(--fs-md);
+  color: var(--accent);
+}
+
+.choice-actions {
+  display: flex;
+  gap: var(--space-sm);
+  justify-content: flex-end;
 }
 
 /* Error message */

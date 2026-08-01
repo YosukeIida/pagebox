@@ -4,27 +4,7 @@ import { viewUrl } from "../../core/urls";
 import { SiteHeader } from "./components/SiteHeader";
 import { StatCard } from "./components/StatCard";
 import { Badge } from "./components/Badge";
-
-function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function formatDate(d: Date): string {
-  return d.toLocaleDateString("ja-JP", { year: "numeric", month: "short", day: "numeric" });
-}
-
-function formatDateTime(s: string): string {
-  try {
-    return new Date(s).toLocaleString("ja-JP", {
-      year: "numeric", month: "short", day: "numeric",
-      hour: "2-digit", minute: "2-digit",
-    });
-  } catch {
-    return s;
-  }
-}
+import { formatDate, formatDateTime, formatSize } from "./format";
 
 export interface ViewStat {
   slug: string;
@@ -96,6 +76,8 @@ export function DashboardPage(props: DashboardProps) {
         <div class="stat-grid">
           <StatCard label="ユーザー数" value={stats.userStats.length} />
           <StatCard label="総ドキュメント数" value={stats.totalDocCount} />
+          <StatCard label="総バージョン数" value={stats.totalVersionCount} />
+          {/* 全バージョンの合計。バージョンは無制限に保持するため最新版だけの合計では足りない */}
           <StatCard label="総ストレージ使用量" value={formatSize(stats.totalSize)} />
           <StatCard label="直近30日の閲覧数" value={totalViews !== null ? totalViews.toLocaleString() : "—"} />
         </div>
@@ -144,6 +126,7 @@ export function DashboardPage(props: DashboardProps) {
                     <th>タイトル</th>
                     <th>アップロード者</th>
                     <th>日時</th>
+                    <th>版</th>
                     <th>サイズ</th>
                   </tr>
                 </thead>
@@ -162,6 +145,7 @@ export function DashboardPage(props: DashboardProps) {
                       </td>
                       <td class="email-cell">{d.uploadedBy}</td>
                       <td>{formatDate(d.createdAt)}</td>
+                      <td class="num-cell">v{d.latestVersion}</td>
                       <td class="num-cell">{formatSize(d.size)}</td>
                     </tr>
                   ))}

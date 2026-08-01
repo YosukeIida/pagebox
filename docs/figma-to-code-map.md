@@ -12,7 +12,7 @@ pagebox の Figma プラン（Education/student）では **Code Connect が使�
 
 | Figma collection | Figma 変数名 | コードの CSS 変数 |
 |---|---|---|
-| color（Light/Dark 2モード） | `bg` `surface` `border` `text` `text-muted` `accent` `accent-hover` `accent-text` `danger` `danger-text` `success-bg` `success-fg` `error-bg` `error-fg` | `var(--<同名>)` |
+| color（Light/Dark 2モード） | `bg` `surface` `border` `text` `text-muted` `accent` `accent-hover` `accent-text` `overlay` `danger` `danger-text` `success-bg` `success-fg` `error-bg` `error-fg` | `var(--<同名>)` |
 | scale | `space/xs`..`space/4xl` | `var(--space-xs)`..`var(--space-4xl)` |
 | scale | `radius/sm` `radius/md` `radius/pill` | `var(--radius-sm)` `var(--radius)` `var(--radius-pill)` |
 | scale | `font-size/*` | `var(--fs-*)` |
@@ -25,10 +25,16 @@ pagebox の Figma プラン（Education/student）では **Code Connect が使�
 | Figma コンポーネント | コード | 使い方 |
 |---|---|---|
 | `Button`（variant=primary/secondary/danger） | `src/http/web/components/Button.tsx` | `<Button variant="primary\|secondary\|danger" href? ...>` |
-| `Badge`（variant=ok/ng/admin） | `src/http/web/components/Badge.tsx` | `<Badge variant="ok\|ng\|admin">` |
+| `Badge`（variant=ok/ng/admin/version） | `src/http/web/components/Badge.tsx` | `<Badge variant="ok\|ng\|admin\|version">`（version は `.version-badge` を使う） |
 | `StatCard` | `src/http/web/components/StatCard.tsx` | `<StatCard label={…} value={…} error? />` |
 | `Card`（doc-card 表面） | `src/http/web/components/Card.tsx` | `<Card>…</Card>` |
+| `DocCard` | `src/http/web/components/DocCard.tsx` | `<DocCard title={…} meta={…} actions={…} />` |
 | `SiteHeader` | `src/http/web/components/SiteHeader.tsx` | `<SiteHeader email={…} showAdminBadge? />` |
+| `DropZone` / `ResultBox` / `ErrorMsg` | `src/http/web/components/` の同名ファイル | アップロード画面の構造パターン |
+| `SharePopover`（共有メニュー） | `src/http/web/components/SharePopover.tsx` | `<SharePopover url={…}>…</SharePopover>`。位置決めは利用側の `.share-host` が持つ |
+| `VersionList` / `VersionRow` | `src/http/web/components/VersionList.tsx` / `VersionRow.tsx` | バージョン履歴。行の `actions` は `DocCard` と同じ slot 方式 |
+| `ChoiceDialog` | `src/http/web/components/ChoiceDialog.tsx` | 選択ダイアログの殻。`inline` で見本用にその場置きにできる |
+| `UpdateChoices` | `src/http/web/components/UpdateChoices.tsx` | 同名検出の選択肢（ラジオ行）。`POST /api/upload/check` の `candidatesHtml` としても SSR される |
 
 ## 実装ルール（Figma から起こすとき）
 

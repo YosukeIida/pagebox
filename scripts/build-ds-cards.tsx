@@ -18,6 +18,8 @@ import {
   StatCardExamples,
   DocCardExample,
   UiPatternExamples,
+  SharePopoverExample,
+  ChoiceDialogExample,
 } from "../src/http/web/catalog";
 
 const componentsPath = join(import.meta.dir, "../src/http/web/static/components.css");
@@ -60,6 +62,8 @@ const cards: Array<[string, string, string, string]> = [
   ["06-badges.html", "Components", "Badge", String(BadgeExamples())],
   ["07-cards.html", "Components", "Card / StatCard", String(DocCardExample()) + String(StatCardExamples())],
   ["08-patterns.html", "Components", "UI patterns", String(UiPatternExamples())],
+  ["09-share-popover.html", "Components", "SharePopover / VersionList", String(SharePopoverExample())],
+  ["10-choice-dialog.html", "Components", "ChoiceDialog / UpdateChoices", String(ChoiceDialogExample())],
 ];
 
 // 生成前に既存の *.html を削除する。カードを削除・改名しても古い HTML が残らず、

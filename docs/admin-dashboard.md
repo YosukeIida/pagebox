@@ -23,9 +23,15 @@ HTML アップロード＆URL 共有サービスとして、管理者が以下�
 | 情報 | 取得方法 |
 |---|---|
 | ユーザー一覧・登録日 | `SELECT * FROM users ORDER BY created_at DESC` |
-| ユーザーごとのドキュメント数・合計サイズ | `documents` を `uploaded_by` で GROUP BY |
-| 直近アップロード一覧 | `documents JOIN users` |
+| ユーザーごとのドキュメント数 | `documents` を `uploaded_by` で数える |
+| ユーザーごとの合計サイズ | `document_versions` を `created_by` で SUM（**全バージョン基準**） |
+| 総ドキュメント数 / 総バージョン数 | `COUNT(*) FROM documents` / `COUNT(*) FROM document_versions` |
+| 総ストレージ使用量 | `SUM(size) FROM document_versions` |
+| 直近アップロード一覧 | `documents JOIN users`（`latest_version` も表示） |
 | グループ構成 | `groups`, `user_groups` |
+
+> サイズ系の集計を `document_versions` 基準にしているのは、バージョンを**無制限に保持する**方針のため。
+> `documents`（最新版のスナップショット）だけを合計すると実際の R2 使用量から乖離する。
 
 > **stage では外部 API 由来のパネルが空になる。** stage には `CLOUDFLARE_API_TOKEN` を置かない方針のため
 > （本番スコープのトークンを stage に持ち込まない）、`admin.ts` の `hasCfCreds` が false になり

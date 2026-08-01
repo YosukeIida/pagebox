@@ -1,6 +1,7 @@
 # pagebox 実装 spec（MVP 初期実装用・歴史的記録）
 
-> **注意**: このドキュメントは **Phase 1 MVP** の初期実装仕様書です。現在の実装はこの spec から大きく進化しており（認証、グループ管理、OGP、サブドメイン分離、レート制限など）、実際のコードとは一致しない箇所があります。
+> **注意**: このドキュメントは **Phase 1 MVP** の初期実装仕様書です。現在の実装はこの spec から大きく進化しており（認証、グループ管理、OGP、サブドメイン分離、レート制限、バージョン管理など）、実際のコードとは一致しない箇所があります。
+> 特に **データモデルは 1 slug = 1 ファイルではなくなりました**。`documents` は「共有 URL の単位 + 最新版のスナップショット」で、実体の履歴は `document_versions` が持ちます（`deploy/cloudflare/migrations/0004_versions.sql`）。blob のキーも版ごとに分かれるため、`${slug}.html` を組み立てず必ず `document_versions.storage_key` を経由してください。API とフローは [flow.md](flow.md) を参照。
 > **現在の実装状態は [HANDOVER.md](../HANDOVER.md) を参照してください。**
 
 ---
