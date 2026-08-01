@@ -3,10 +3,12 @@
 export
 
 BUN   = docker run --rm -v $(PWD):/app -w /app oven/bun:1
-# wrangler は Bun と互換性の問題があるため Node.js で実行する
-# ADMIN_EMAILS / ACCESS_AUD もコンテナへ渡す。
-# Makefile の `export` はホスト側のシェルにしか効かず、docker は -e で明示したものだけを
-# コンテナに渡す。渡し忘れると secret put 系が空文字を書き込んで本番設定を壊す。
+# Cloudflare API を直接叩く Bun スクリプト用（認証情報をコンテナへ渡す）
+BUN_CF = docker run --rm -v $(PWD):/app -w /app -e CLOUDFLARE_API_TOKEN -e CLOUDFLARE_ACCOUNT_ID -e ADMIN_EMAILS -e ACCESS_AUD oven/bun:1
+# wrangler は Bun と互換性の問題があるため Node.js で実行する。
+# ADMIN_EMAILS / ACCESS_AUD もコンテナへ渡すこと: Makefile の `export` はホスト側の
+# シェルにしか効かず、docker は -e で明示したものだけをコンテナに渡す。
+# 渡し忘れると secret put 系が空文字を書き込んで本番設定を壊す。
 NODE_CF = docker run --rm -v $(PWD):/app -w /app -e CLOUDFLARE_API_TOKEN -e CLOUDFLARE_ACCOUNT_ID -e ADMIN_EMAILS -e ACCESS_AUD -e WRANGLER_SEND_METRICS=false node:20-slim
 
 # ── ローカル開発 ──────────────────────────────────────────
@@ -28,7 +30,7 @@ ds-cards:
 
 # ── Cloudflare 初回セットアップ ──────────────────────────
 cf-access-setup:
-	$(NODE_CF) node scripts/setup-cloudflare-access.mjs
+	$(BUN_CF) bun run scripts/setup-cloudflare-access.ts --env production
 
 cf-d1-create:
 	$(NODE_CF) npx --yes wrangler@4 d1 create pagebox
@@ -63,7 +65,7 @@ cf-dev:
 # stage 用 Access アプリを作る（ADMIN_EMAILS に限定した Allow ポリシー）。
 # 閲覧用の view.stage.* には意図的にアプリを作らない（アプリが無い = 公開）。
 cf-stage-access-setup:
-	$(NODE_CF) node scripts/setup-cloudflare-access.mjs --env stage
+	$(BUN_CF) bun run scripts/setup-cloudflare-access.ts --env stage
 
 cf-stage-d1-create:
 	$(NODE_CF) npx --yes wrangler@4 d1 create pagebox-stage

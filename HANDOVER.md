@@ -31,7 +31,7 @@ pagebox/
 ├── showcase/
 │   └── pagebox-intro.html      # pagebox 紹介ページ（pagebox 自体にアップロード）
 ├── scripts/
-│   ├── setup-cloudflare-access.mjs  # Cloudflare Access アプリ API 構築スクリプト
+│   ├── setup-cloudflare-access.ts   # Cloudflare Access アプリ API 構築（--env production|stage）
 │   └── check-stage-config.ts        # stage 設定が本番から分離されているかの deploy 前ゲート
 ├── src/
 │   ├── core/                   # ビジネスロジック（外部依存なし）
@@ -79,7 +79,7 @@ cp .env.cloudflare.example .env.cloudflare
 make dev          # http://localhost:3000 で起動（ソースをマウント + watch）
 make dev-down     # 停止
 make typecheck    # 型チェック
-make test         # bun test（core/urls.ts と stage 設定ガードの回帰テスト）
+make test         # bun test（URL 組み立て・バージョン管理 usecase・stage 設定ガード・Access セットアップ）
 ```
 
 ### Cloudflare デプロイ
@@ -203,7 +203,11 @@ document_versions  … 版の実体（append-only）。PK は (slug, version)
 ### wrangler は Node.js で実行する
 
 `bunx wrangler` では非同期処理の互換性問題でデプロイが完了しない。
-Makefile では `node:20-slim` + `npx wrangler@4` を使用している。
+Makefile では `node:20-slim` + `npx wrangler@4` を使用している（`NODE_CF`）。
+
+この制約は **wrangler を呼ぶときだけ**。Cloudflare API を直接叩くスクリプト
+（`setup-cloudflare-access.ts`）は Bun で動かしている（`BUN_CF`）ので、
+型チェックとテストの対象にできる。
 
 ### Workers Assets のパス設定
 

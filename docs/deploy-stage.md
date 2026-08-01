@@ -52,7 +52,12 @@ D1 / R2 / KV は stage に1セットだけ。競合しうるのは**破壊的な
 
 ## 初回セットアップ
 
-`wrangler.toml` の `[env.stage]` にある `TODO_*` を埋めるまで deploy は失敗する。順番に実行する。
+> **stage は既に構築済みで、`wrangler.toml` には実 ID が入っている。**
+> この節は **stage を一から作り直すとき**の手順。既存の値を消して作り直すことになるので、
+> 通常の運用（PR に `stage` ラベルを付ける）では触らなくてよい。
+>
+> `check-stage-config` は `TODO_` が残っていると deploy を止めるので、
+> 作り直しの途中で中途半端な状態のまま deploy されることはない。
 
 ### 1. リソースを作る
 
@@ -62,10 +67,10 @@ make cf-stage-kv-create    # 出力の id を控える
 make cf-stage-r2-create
 ```
 
-`deploy/cloudflare/wrangler.toml` の以下を書き換える。
+`deploy/cloudflare/wrangler.toml` の以下を、出力された値に**置き換える**。
 
-- `[[env.stage.d1_databases]].database_id` ← `TODO_STAGE_D1_DATABASE_ID`
-- `[[env.stage.kv_namespaces]].id` ← `TODO_STAGE_KV_NAMESPACE_ID`
+- `[[env.stage.d1_databases]].database_id`
+- `[[env.stage.kv_namespaces]].id`
 
 ### 2. Cloudflare Access アプリを作る
 
@@ -82,7 +87,7 @@ make cf-stage-access-setup   # ADMIN_EMAILS に限定した Allow ポリシー�
 > `HANDOVER.md` に「API ではサブパスアプリを作れない」という記録があるが、それは
 > 同一ドメインのサブパス（`pagebox.iodine2.net/d`）の話で、**別ホスト名なら API で作れる**。
 
-出力された **AUD タグ**を `[env.stage.vars].ACCESS_AUD`（`TODO_STAGE_ACCESS_AUD`）に書き込む。
+出力された **AUD タグ**を `[env.stage.vars].ACCESS_AUD` に置き換える。
 
 ### 3. secret を入れる
 
@@ -163,7 +168,7 @@ CI の stage workflow も同じゲートを通る）。
 |---|---|
 | CI が「stage は #NN が使用中」で落ちる | その PR の `stage` ラベルを外してもらう |
 | stage のデータがおかしい | `make cf-stage-reset`（D1 を初期化して migrations を再適用） |
-| `TODO_STAGE_*` のまま deploy して失敗する | 上の初回セットアップ 1〜2 を実施する |
+| `TODO_STAGE_*` のまま deploy して失敗する | stage を作り直した直後。上の初回セットアップ 1〜2 で実 ID に置き換える |
 | `/admin` のパネルが空 | 仕様（stage に API トークンを置いていない） |
 
 `cf-stage-reset` は **R2 の孤児オブジェクトを残す**（wrangler に一括削除が無い）。
