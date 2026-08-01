@@ -89,7 +89,7 @@
 2. （任意）**Claude Design でモック生成** → `/design-sync` で pull → Hono JSX + components.css で実装（import-at-creation）。
 3. （運用）Figma「Components (code-synced)」を更新したいとき: Figma デスクトップ + Desktop Bridge を Run → figma-console で再生成（コードが正）。
 4. （将来）Code Connect が必要なら Figma を Organization/Enterprise + Dev/Full seat へ。
-5. （製品）優先度中の機能: グループ招待 / ページネーション（`HANDOVER.md` 参照）。
+5. （製品）未着手の機能は `backlog/tasks/`（`backlog task list --plain`）を参照。
 
 ## 検証コマンド
 - `make typecheck` / `make dev`（`/`・`/styleguide`・`/admin`）/ `make ds-cards`
