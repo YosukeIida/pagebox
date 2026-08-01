@@ -1,6 +1,6 @@
 # pagebox 引き継ぎ書
 
-最終更新: 2026-07-26（バージョン管理を実装）
+最終更新: 2026-08-01（バージョン管理と stage 環境を本番反映）
 
 ---
 
@@ -218,8 +218,17 @@ Makefile では `node:20-slim` + `npx wrangler@4` を使用している。
 
 ### Cloudflare Access のサブパスアプリ
 
-API では既存ルートドメインアプリがある場合サブパスアプリを作れない。
-`pagebox-viewer` アプリは Cloudflare ダッシュボードから手動作成した。
+API では既存ルートドメインアプリがある場合**サブパス**アプリを作れない。
+`pagebox-viewer`（`pagebox.iodine2.net/d`）はダッシュボードから手動作成した。
+
+一方で**別ホスト名なら API で作れる**。`pagebox-stage`（`stage.pagebox.iodine2.net`）は
+`make cf-stage-access-setup` が API で作成している。
+
+### Access アプリが無いホストは公開になる
+
+`view.pagebox.iodine2.net` と `view.stage.pagebox.iodine2.net` には**意図的にアプリを作っていない**。
+Access アプリが無いホストは保護対象外＝誰でも開ける状態になり、それが期待動作（共有 URL）。
+Bypass ポリシーのアプリを作る必要はない。
 
 ### Workers Rate Limiting API
 
@@ -263,13 +272,13 @@ PR のコードを本番前に検証する環境。**構成・セットアップ
 | リソース | 名前/ID |
 |---|---|
 | Workers スクリプト | `pagebox-stage`（`[env.stage]` から自動命名） |
-| D1 データベース | `pagebox-stage`（ID は wrangler.toml に記入） |
+| D1 データベース | `pagebox-stage`（ID: `b8f2a4bb-09c8-4735-b877-5b2d829c5c37`） |
 | R2 バケット | `pagebox-blobs-stage` |
-| KV Namespace | `OG_CACHE_KV`（stage 用 ID） |
+| KV Namespace | `OG_CACHE_KV`（ID: `5b439e8ab01f47178070040ef1a56f57`） |
 | Analytics Engine | `pagebox_events_stage` |
 | Rate limit namespace | `10002` |
 | カスタムドメイン | `stage.pagebox.iodine2.net` / `view.stage.pagebox.iodine2.net` |
-| Cloudflare Access | `pagebox-stage`（Allow）/ `pagebox-stage-viewer`（Bypass） |
+| Cloudflare Access | `pagebox-stage`（Allow・ADMIN_EMAILS 限定、`make cf-stage-access-setup`）。**view 側はアプリを作らない＝公開**（本番の `view.pagebox.iodine2.net` と同じ） |
 
 - **`stage` ラベルを付けた PR が stage を占有する。** 他 PR が確保中なら CI が落ちる
 - **D1 / R2 / KV は PR 間で共有**（PR ごとに DB は作らない）。壊れたら `make cf-stage-reset`

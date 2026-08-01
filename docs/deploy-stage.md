@@ -67,20 +67,22 @@ make cf-stage-r2-create
 - `[[env.stage.d1_databases]].database_id` ← `TODO_STAGE_D1_DATABASE_ID`
 - `[[env.stage.kv_namespaces]].id` ← `TODO_STAGE_KV_NAMESPACE_ID`
 
-### 2. Cloudflare Access アプリを2つ作る（ダッシュボードで手動）
+### 2. Cloudflare Access アプリを作る
 
-API では既存ルートドメインアプリがあるとサブパス／サブドメインアプリを作れないことがあるため
-（`HANDOVER.md` の記録参照）、**ダッシュボードで作成する**。
+```bash
+make cf-stage-access-setup   # ADMIN_EMAILS に限定した Allow ポリシーで作成（冪等）
+```
 
-| アプリ | ホスト名 | ポリシー |
-|---|---|---|
-| `pagebox-stage` | `stage.pagebox.iodine2.net` | **Allow**（自分のメールアドレス） |
-| `pagebox-stage-viewer` | `view.stage.pagebox.iodine2.net` | **Bypass**（共有 URL なので認証なしで開ける） |
+作られるのは **`stage.pagebox.iodine2.net` の1つだけ**。
 
-`pagebox-stage` の **Application Audience (AUD) Tag** を
-`[env.stage.vars].ACCESS_AUD`（`TODO_STAGE_ACCESS_AUD`）に書き込む。
+> **閲覧用の `view.stage.pagebox.iodine2.net` には意図的にアプリを作らない。**
+> Access アプリが無いホストは保護対象外＝公開になり、それが期待動作（共有 URL は
+> 認証なしで開けなければならない）。本番も `view.pagebox.iodine2.net` にアプリを置いていない。
+>
+> `HANDOVER.md` に「API ではサブパスアプリを作れない」という記録があるが、それは
+> 同一ドメインのサブパス（`pagebox.iodine2.net/d`）の話で、**別ホスト名なら API で作れる**。
 
-> `view.*` を Bypass にしないと、共有した相手が閲覧できない。本番の `pagebox-viewer` と同じ考え方。
+出力された **AUD タグ**を `[env.stage.vars].ACCESS_AUD`（`TODO_STAGE_ACCESS_AUD`）に書き込む。
 
 ### 3. secret を入れる
 
