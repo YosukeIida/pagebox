@@ -1,9 +1,10 @@
 // Access セットアップスクリプトの純粋な部分の回帰テスト。
-// 過去に踏んだ2つの失敗を固定する:
+// 過去に踏んだ3つの失敗を固定する:
 //   1. 既存アプリの重複チェックが "domain/path" の結合形で比較できていなかった
 //   2. `--env=stage` が拾えず、本番設定にフォールバックしていた
+//   3. 既存アプリを見つけるとポリシーを確認せず、壊れた状態のまま再実行が成功していた
 import { describe, expect, test } from "bun:test";
-import { buildApps, fullDomain, parseArgs } from "./setup-cloudflare-access";
+import { type AccessPolicy, buildApps, fullDomain, parseArgs, planPolicy } from "./setup-cloudflare-access";
 
 describe("fullDomain", () => {
   // API は path 付きアプリの domain を "pagebox.iodine2.net/d" の形で返す
@@ -85,5 +86,51 @@ describe("buildApps", () => {
       const apps = buildApps(env, ["a@example.com"]);
       expect(apps.filter((a) => a.main)).toHaveLength(1);
     }
+  });
+});
+
+describe("planPolicy", () => {
+  const spec: AccessPolicy = {
+    name: "Allow admins",
+    decision: "allow",
+    include: [{ email: { email: "a@example.com" } }, { email: { email: "b@example.com" } }],
+  };
+
+  // アプリ作成に成功しポリシー作成で失敗した状態。以前はここを「既に存在します」で
+  // 素通りしていたため、再実行しても全員拒否のまま成功していた。
+  test("ポリシーが0件なら作り直す", () => {
+    expect(planPolicy([], spec)).toEqual({ action: "create", reason: expect.any(String) });
+  });
+
+  test("定義どおりなら何もしない", () => {
+    expect(planPolicy([{ id: "p1", ...spec }], spec)).toEqual({ action: "none" });
+  });
+
+  // include は OR 条件の集合。順序差で毎回 update を投げないこと
+  test("include の順序が違うだけなら何もしない", () => {
+    const reordered = { id: "p1", ...spec, include: [...spec.include].reverse() };
+    expect(planPolicy([reordered], spec)).toEqual({ action: "none" });
+  });
+
+  test("include が変わっていれば同じポリシーを更新する", () => {
+    const stale = { id: "p1", ...spec, include: [{ email: { email: "a@example.com" } }] };
+    expect(planPolicy([stale], spec)).toMatchObject({ action: "update", policyId: "p1" });
+  });
+
+  // bypass が allow に書き換わっていると公開ビューが壊れる
+  test("decision が変わっていれば更新する", () => {
+    const flipped = { id: "p1", ...spec, decision: "bypass" };
+    expect(planPolicy([flipped], spec)).toMatchObject({ action: "update", policyId: "p1" });
+  });
+
+  // 人が手で入れたポリシーを消したり、意図しない許可を足したりしない
+  test("想定名が無く別のポリシーだけある場合は触らず conflict にする", () => {
+    const foreign = { id: "p9", name: "Allow everyone", decision: "allow", include: [{ everyone: {} }] };
+    expect(planPolicy([foreign], spec)).toMatchObject({ action: "conflict" });
+  });
+
+  test("想定名があれば別のポリシーが並んでいても conflict にしない", () => {
+    const foreign = { id: "p9", name: "Something else", decision: "allow", include: [{ everyone: {} }] };
+    expect(planPolicy([foreign, { id: "p1", ...spec }], spec)).toEqual({ action: "none" });
   });
 });

@@ -74,11 +74,19 @@ make cf-stage-r2-create
 
 ### 2. Cloudflare Access アプリを作る
 
+**先に `.env.cloudflare` の `ADMIN_EMAILS` を埋めておく**（カンマ区切り）。空だと
+「全員許可」へフォールバックせずエラーで止まる。
+
 ```bash
 make cf-stage-access-setup   # ADMIN_EMAILS に限定した Allow ポリシーで作成（冪等）
 ```
 
 作られるのは **`stage.pagebox.iodine2.net` の1つだけ**。
+
+再実行しても壊れないだけでなく、**既存アプリのポリシーが定義とずれていれば直す**。
+ポリシーが 0 件（アプリ作成後にポリシー作成が失敗した状態）なら作り直し、
+`ADMIN_EMAILS` を変えたときは既存ポリシーを更新する。想定名のポリシーが無く別の
+ポリシーだけがある場合は、手で入れたものを壊さないよう変更せず非ゼロ終了で知らせる。
 
 > **閲覧用の `view.stage.pagebox.iodine2.net` には意図的にアプリを作らない。**
 > Access アプリが無いホストは保護対象外＝公開になり、それが期待動作（共有 URL は

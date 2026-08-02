@@ -70,7 +70,8 @@ pagebox/
 
 ```bash
 cp .env.cloudflare.example .env.cloudflare
-# CLOUDFLARE_API_TOKEN と CLOUDFLARE_ACCOUNT_ID を記入
+# CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID / ADMIN_EMAILS を記入
+# ACCESS_AUD は Access アプリを作ったあとに埋める
 ```
 
 ### ローカル開発
@@ -120,6 +121,8 @@ main ← PR 経由でのみマージ（直接 push 禁止）
 |---|---|
 | `CLOUDFLARE_API_TOKEN` | API トークン（後述の権限一覧参照） |
 | `CLOUDFLARE_ACCOUNT_ID` | アカウント ID（ダッシュボード URL から確認） |
+| `ADMIN_EMAILS` | `/admin` を使える管理者のメール（カンマ区切り）。stage の Access ポリシーの許可リストも兼ねるため、`make cf-stage-access-setup` を実行する前に必要 |
+| `ACCESS_AUD` | Access アプリの AUD タグ。`make cf-access-setup` の出力を貼る（初回は空でよい） |
 
 **必要なトークン権限（Account スコープ）**
 

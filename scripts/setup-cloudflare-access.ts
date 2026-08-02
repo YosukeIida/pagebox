@@ -8,7 +8,10 @@
 // （実際 `--env=stage` を `indexOf("--env")` で拾えず production にフォールバックしていた）。
 // 未知の引数もすべて拒否する。
 //
-// 冪等: 同じホスト名のアプリが既にあれば作成せず AUD だけ表示する。
+// 冪等: 同じホスト名のアプリが既にあれば作成しない。ただし「存在する」で済ませず、
+// ポリシーが定義どおりかまで毎回確認して直す。アプリ作成には成功しポリシー作成で
+// 失敗した中途半端な状態は、再実行で自動的に修復されなければならない
+// （ポリシーが 0 件の Access アプリは全員拒否になり、bypass アプリなら公開が壊れる）。
 //
 // 注意: 閲覧用ホスト（view.*）には **アプリを作らない**。
 // Access アプリが無いホストは保護対象外＝公開になるため、それが期待動作
@@ -98,6 +101,55 @@ export function buildApps(env: EnvName, adminEmails: string[]): AppSpec[] {
   ];
 }
 
+// API から返ってくる既存ポリシー。name 以外は欠けうるものとして扱う。
+export interface ExistingPolicy {
+  id: string;
+  name?: string;
+  decision?: string;
+  include?: Record<string, unknown>[];
+}
+
+export type PolicyPlan =
+  | { action: "none" }
+  | { action: "create"; reason: string }
+  | { action: "update"; policyId: string; reason: string }
+  | { action: "conflict"; reason: string };
+
+// include は OR 条件の集合なので順序に意味がない。順序差で毎回 update が走らないよう揃える。
+function normalizeInclude(include: Record<string, unknown>[] | undefined): string {
+  return JSON.stringify((include ?? []).map((i) => JSON.stringify(i)).sort());
+}
+
+// 既存ポリシーと定義を突き合わせて、次に取るべき操作を決める。
+//
+// ポリシーが 0 件なら「アプリだけ作られて止まった」状態なので作り直す。ここを
+// 「アプリがあるからスキップ」で済ませていたため、壊れた状態のまま再実行が成功していた。
+//
+// 想定名のポリシーが無いのに別のポリシーがある場合は触らない。人が手で入れた
+// ポリシーを消したり、precedence の異なるポリシーを足して意図しない許可を作るより、
+// 止めて人に見せる方が安全。
+export function planPolicy(existing: ExistingPolicy[], spec: AccessPolicy): PolicyPlan {
+  if (existing.length === 0) {
+    return { action: "create", reason: "ポリシーが 1 件も無い（作成が途中で失敗した状態）" };
+  }
+  const current = existing.find((p) => p.name === spec.name);
+  if (!current) {
+    const names = existing.map((p) => p.name ?? p.id).join(", ");
+    return { action: "conflict", reason: `"${spec.name}" が無く、別のポリシーだけがある（${names}）` };
+  }
+  if (current.decision !== spec.decision) {
+    return {
+      action: "update",
+      policyId: current.id,
+      reason: `decision が ${current.decision ?? "不明"} → ${spec.decision} に変わっている`,
+    };
+  }
+  if (normalizeInclude(current.include) !== normalizeInclude(spec.include)) {
+    return { action: "update", policyId: current.id, reason: "include が定義と一致しない" };
+  }
+  return { action: "none" };
+}
+
 interface CfResponse<T> {
   success: boolean;
   errors: unknown[];
@@ -127,6 +179,12 @@ function createClient(accountId: string, apiToken: string) {
   return {
     async post<T>(path: string, body: unknown): Promise<T> {
       return (await call<T>("POST", path, body)).result;
+    },
+    async put<T>(path: string, body: unknown): Promise<T> {
+      return (await call<T>("PUT", path, body)).result;
+    },
+    async listPolicies(appId: string): Promise<ExistingPolicy[]> {
+      return (await call<ExistingPolicy[]>("GET", `/access/apps/${appId}/policies`)).result ?? [];
     },
     // 全ページを取得する。1ページしか見ないと、アプリが増えたときに既存を検出できず
     // 重複作成を試みてしまう（このスクリプトが以前踏んだのと同じ種類の失敗）。
@@ -171,27 +229,49 @@ async function main(): Promise<void> {
   const existing = await cf.listApps();
 
   let mainApp: AccessApp | null = null;
+  let conflicts = 0;
   for (const spec of specs) {
     const target = fullDomain(spec.domain, spec.path);
     const found = existing.find((a) => a.domain === target);
+
+    let app: AccessApp;
+    // 既存アプリでもポリシーは必ず確認する。新規作成時は当然 0 件なので、
+    // 「0 件なら作る」の一本道に合流させて分岐を持たせない。
+    let policies: ExistingPolicy[] = [];
     if (found) {
+      app = found;
+      policies = await cf.listPolicies(found.id);
       console.log(`✓ ${spec.name} は既に存在します (id: ${found.id})`);
-      if (spec.main) mainApp = found;
-      continue;
+    } else {
+      app = await cf.post<AccessApp>("/access/apps", {
+        name: spec.name,
+        domain: spec.domain,
+        ...(spec.path ? { path: spec.path } : {}),
+        type: "self_hosted",
+        session_duration: "24h",
+      });
+      console.log(`✅ ${spec.name} を作成しました (id: ${app.id}, domain: ${target})`);
     }
-    const app = await cf.post<AccessApp>("/access/apps", {
-      name: spec.name,
-      domain: spec.domain,
-      ...(spec.path ? { path: spec.path } : {}),
-      type: "self_hosted",
-      session_duration: "24h",
-    });
-    console.log(`✅ ${spec.name} を作成しました (id: ${app.id}, domain: ${target})`);
-    await cf.post(`/access/apps/${app.id}/policies`, { ...spec.policy, session_duration: "24h", precedence: 1 });
+
     const who = spec.policy.include
       .map((i) => (i.email as { email?: string } | undefined)?.email ?? "everyone")
       .join(", ");
-    console.log(`  └─ ${spec.policy.decision} ポリシーを追加しました（${who}）`);
+    const body = { ...spec.policy, session_duration: "24h", precedence: 1 };
+    const plan = planPolicy(policies, spec.policy);
+    if (plan.action === "create") {
+      await cf.post(`/access/apps/${app.id}/policies`, body);
+      console.log(`  └─ ${spec.policy.decision} ポリシーを作成しました（${who}）: ${plan.reason}`);
+    } else if (plan.action === "update") {
+      await cf.put(`/access/apps/${app.id}/policies/${plan.policyId}`, body);
+      console.log(`  └─ ${spec.policy.decision} ポリシーを更新しました（${who}）: ${plan.reason}`);
+    } else if (plan.action === "conflict") {
+      console.error(`  └─ ⚠️ ${plan.reason}`);
+      console.error("     自動では直しません。ダッシュボードで確認してください。");
+      conflicts++;
+    } else {
+      console.log(`  └─ ポリシーは定義どおり（${spec.policy.decision}: ${who}）`);
+    }
+
     if (spec.main) mainApp = app;
   }
 
@@ -209,6 +289,12 @@ async function main(): Promise<void> {
     console.log("\n.env.cloudflare に以下を追加してください:");
     console.log(`ACCESS_AUD=${mainApp.aud}`);
     console.log("次のコマンドを実行してください:  make cf-secret-aud");
+  }
+
+  // 手を入れなかった差異が残っているなら成功で終わらせない
+  if (conflicts > 0) {
+    console.error(`\n${conflicts} 件のポリシーが定義と食い違ったままです。`);
+    process.exit(1);
   }
 }
 
