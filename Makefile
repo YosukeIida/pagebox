@@ -3,8 +3,13 @@
 export
 
 BUN   = docker run --rm -v $(PWD):/app -w /app oven/bun:1
-# wrangler は Bun と互換性の問題があるため Node.js で実行する
-NODE_CF = docker run --rm -v $(PWD):/app -w /app -e CLOUDFLARE_API_TOKEN -e CLOUDFLARE_ACCOUNT_ID -e WRANGLER_SEND_METRICS=false node:20-slim
+# Cloudflare API を直接叩く Bun スクリプト用（認証情報をコンテナへ渡す）
+BUN_CF = docker run --rm -v $(PWD):/app -w /app -e CLOUDFLARE_API_TOKEN -e CLOUDFLARE_ACCOUNT_ID -e ADMIN_EMAILS -e ACCESS_AUD oven/bun:1
+# wrangler は Bun と互換性の問題があるため Node.js で実行する。
+# ADMIN_EMAILS / ACCESS_AUD もコンテナへ渡すこと: Makefile の `export` はホスト側の
+# シェルにしか効かず、docker は -e で明示したものだけをコンテナに渡す。
+# 渡し忘れると secret put 系が空文字を書き込んで本番設定を壊す。
+NODE_CF = docker run --rm -v $(PWD):/app -w /app -e CLOUDFLARE_API_TOKEN -e CLOUDFLARE_ACCOUNT_ID -e ADMIN_EMAILS -e ACCESS_AUD -e WRANGLER_SEND_METRICS=false node:20-slim
 
 # ── ローカル開発 ──────────────────────────────────────────
 dev:
@@ -25,7 +30,7 @@ ds-cards:
 
 # ── Cloudflare 初回セットアップ ──────────────────────────
 cf-access-setup:
-	$(NODE_CF) node scripts/setup-cloudflare-access.mjs
+	$(BUN_CF) bun run scripts/setup-cloudflare-access.ts --env production
 
 cf-d1-create:
 	$(NODE_CF) npx --yes wrangler@4 d1 create pagebox
@@ -57,6 +62,11 @@ cf-dev:
 
 # ── stage 環境（初回セットアップ）────────────────────────
 # 手順は docs/deploy-stage.md を参照。作成 → ID を wrangler.toml に記入 → deploy の順。
+# stage 用 Access アプリを作る（ADMIN_EMAILS に限定した Allow ポリシー）。
+# 閲覧用の view.stage.* には意図的にアプリを作らない（アプリが無い = 公開）。
+cf-stage-access-setup:
+	$(BUN_CF) bun run scripts/setup-cloudflare-access.ts --env stage
+
 cf-stage-d1-create:
 	$(NODE_CF) npx --yes wrangler@4 d1 create pagebox-stage
 
@@ -99,4 +109,4 @@ cf-stage-reset:
 	$(MAKE) cf-stage-migrate
 
 .PHONY: dev dev-down typecheck test ds-cards cf-access-setup cf-d1-create cf-r2-create cf-kv-create cf-secret-aud cf-secret-dashboard cf-d1-migrate deploy cf-dev \
-	cf-stage-d1-create cf-stage-r2-create cf-stage-kv-create cf-stage-secret check-stage-config stage-deploy-dry stage-deploy cf-stage-migrate cf-stage-reset
+	cf-stage-access-setup cf-stage-d1-create cf-stage-r2-create cf-stage-kv-create cf-stage-secret check-stage-config stage-deploy-dry stage-deploy cf-stage-migrate cf-stage-reset

@@ -92,7 +92,7 @@ preview_urls = false
 [env.stage.vars]
 ACCESS_TEAM_DOMAIN    = "i2net.cloudflareaccess.com"
 # stage 用 Access アプリ（stage.pagebox.iodine2.net）の aud を入れる
-ACCESS_AUD            = "TODO_STAGE_ACCESS_AUD"
+ACCESS_AUD            = "73a084e61bb6bd4516071b2c6b7b043e6e46d742c4e54a6e91fc07ebdc93f702"
 CLOUDFLARE_ACCOUNT_ID = "3f018f156b32326977d5f0423da76cea"
 APP_ORIGIN            = "https://stage.pagebox.iodine2.net"
 VIEW_ORIGIN           = "https://view.stage.pagebox.iodine2.net"
@@ -101,14 +101,14 @@ VIEW_ORIGIN           = "https://view.stage.pagebox.iodine2.net"
 binding = "DB"
 database_name = "pagebox-stage"
 # make cf-stage-d1-create の出力を貼る
-database_id = "TODO_STAGE_D1_DATABASE_ID"
+database_id = "b8f2a4bb-09c8-4735-b877-5b2d829c5c37"
 # 本番と同じ migration を適用する（マイグレーションのリハーサル用）
 migrations_dir = "migrations"
 
 [[env.stage.kv_namespaces]]
 binding = "OG_CACHE_KV"
 # make cf-stage-kv-create の出力を貼る
-id = "TODO_STAGE_KV_NAMESPACE_ID"
+id = "5b439e8ab01f47178070040ef1a56f57"
 
 [[env.stage.r2_buckets]]
 binding = "STORAGE"

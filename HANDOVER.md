@@ -1,6 +1,6 @@
 # pagebox 引き継ぎ書
 
-最終更新: 2026-07-26（バージョン管理を実装）
+最終更新: 2026-08-01（バージョン管理と stage 環境を本番反映）
 
 ---
 
@@ -31,7 +31,7 @@ pagebox/
 ├── showcase/
 │   └── pagebox-intro.html      # pagebox 紹介ページ（pagebox 自体にアップロード）
 ├── scripts/
-│   ├── setup-cloudflare-access.mjs  # Cloudflare Access アプリ API 構築スクリプト
+│   ├── setup-cloudflare-access.ts   # Cloudflare Access アプリ API 構築（--env production|stage）
 │   └── check-stage-config.ts        # stage 設定が本番から分離されているかの deploy 前ゲート
 ├── src/
 │   ├── core/                   # ビジネスロジック（外部依存なし）
@@ -70,7 +70,8 @@ pagebox/
 
 ```bash
 cp .env.cloudflare.example .env.cloudflare
-# CLOUDFLARE_API_TOKEN と CLOUDFLARE_ACCOUNT_ID を記入
+# CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID / ADMIN_EMAILS を記入
+# ACCESS_AUD は Access アプリを作ったあとに埋める
 ```
 
 ### ローカル開発
@@ -79,7 +80,7 @@ cp .env.cloudflare.example .env.cloudflare
 make dev          # http://localhost:3000 で起動（ソースをマウント + watch）
 make dev-down     # 停止
 make typecheck    # 型チェック
-make test         # bun test（core/urls.ts と stage 設定ガードの回帰テスト）
+make test         # bun test（URL 組み立て・バージョン管理 usecase・stage 設定ガード・Access セットアップ）
 ```
 
 ### Cloudflare デプロイ
@@ -120,6 +121,8 @@ main ← PR 経由でのみマージ（直接 push 禁止）
 |---|---|
 | `CLOUDFLARE_API_TOKEN` | API トークン（後述の権限一覧参照） |
 | `CLOUDFLARE_ACCOUNT_ID` | アカウント ID（ダッシュボード URL から確認） |
+| `ADMIN_EMAILS` | `/admin` を使える管理者のメール（カンマ区切り）。stage の Access ポリシーの許可リストも兼ねるため、`make cf-stage-access-setup` を実行する前に必要 |
+| `ACCESS_AUD` | Access アプリの AUD タグ。`make cf-access-setup` の出力を貼る（初回は空でよい） |
 
 **必要なトークン権限（Account スコープ）**
 
@@ -203,7 +206,11 @@ document_versions  … 版の実体（append-only）。PK は (slug, version)
 ### wrangler は Node.js で実行する
 
 `bunx wrangler` では非同期処理の互換性問題でデプロイが完了しない。
-Makefile では `node:20-slim` + `npx wrangler@4` を使用している。
+Makefile では `node:20-slim` + `npx wrangler@4` を使用している（`NODE_CF`）。
+
+この制約は **wrangler を呼ぶときだけ**。Cloudflare API を直接叩くスクリプト
+（`setup-cloudflare-access.ts`）は Bun で動かしている（`BUN_CF`）ので、
+型チェックとテストの対象にできる。
 
 ### Workers Assets のパス設定
 
@@ -218,8 +225,17 @@ Makefile では `node:20-slim` + `npx wrangler@4` を使用している。
 
 ### Cloudflare Access のサブパスアプリ
 
-API では既存ルートドメインアプリがある場合サブパスアプリを作れない。
-`pagebox-viewer` アプリは Cloudflare ダッシュボードから手動作成した。
+API では既存ルートドメインアプリがある場合**サブパス**アプリを作れない。
+`pagebox-viewer`（`pagebox.iodine2.net/d`）はダッシュボードから手動作成した。
+
+一方で**別ホスト名なら API で作れる**。`pagebox-stage`（`stage.pagebox.iodine2.net`）は
+`make cf-stage-access-setup` が API で作成している。
+
+### Access アプリが無いホストは公開になる
+
+`view.pagebox.iodine2.net` と `view.stage.pagebox.iodine2.net` には**意図的にアプリを作っていない**。
+Access アプリが無いホストは保護対象外＝誰でも開ける状態になり、それが期待動作（共有 URL）。
+Bypass ポリシーのアプリを作る必要はない。
 
 ### Workers Rate Limiting API
 
@@ -263,13 +279,13 @@ PR のコードを本番前に検証する環境。**構成・セットアップ
 | リソース | 名前/ID |
 |---|---|
 | Workers スクリプト | `pagebox-stage`（`[env.stage]` から自動命名） |
-| D1 データベース | `pagebox-stage`（ID は wrangler.toml に記入） |
+| D1 データベース | `pagebox-stage`（ID: `b8f2a4bb-09c8-4735-b877-5b2d829c5c37`） |
 | R2 バケット | `pagebox-blobs-stage` |
-| KV Namespace | `OG_CACHE_KV`（stage 用 ID） |
+| KV Namespace | `OG_CACHE_KV`（ID: `5b439e8ab01f47178070040ef1a56f57`） |
 | Analytics Engine | `pagebox_events_stage` |
 | Rate limit namespace | `10002` |
 | カスタムドメイン | `stage.pagebox.iodine2.net` / `view.stage.pagebox.iodine2.net` |
-| Cloudflare Access | `pagebox-stage`（Allow）/ `pagebox-stage-viewer`（Bypass） |
+| Cloudflare Access | `pagebox-stage`（Allow・ADMIN_EMAILS 限定、`make cf-stage-access-setup`）。**view 側はアプリを作らない＝公開**（本番の `view.pagebox.iodine2.net` と同じ） |
 
 - **`stage` ラベルを付けた PR が stage を占有する。** 他 PR が確保中なら CI が落ちる
 - **D1 / R2 / KV は PR 間で共有**（PR ごとに DB は作らない）。壊れたら `make cf-stage-reset`
