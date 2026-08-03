@@ -30,6 +30,7 @@ pagebox/
 ├── .env.cloudflare.example     # テンプレート
 ├── showcase/
 │   └── pagebox-intro.html      # pagebox 紹介ページ（pagebox 自体にアップロード）
+├── backlog/                    # タスク管理（Backlog.md）。「これからやること」はここが正
 ├── scripts/
 │   ├── setup-cloudflare-access.ts   # Cloudflare Access アプリ API 構築（--env production|stage）
 │   └── check-stage-config.ts        # stage 設定が本番から分離されているかの deploy 前ゲート
@@ -273,8 +274,9 @@ resvg に渡すフォント（Noto Sans JP 900/400）は `cdn.jsdelivr.net` か�
 
 ### stage
 
-PR のコードを本番前に検証する環境。**構成・セットアップ手順・運用ルールは
-[docs/deploy-stage.md](docs/deploy-stage.md) が正**。
+PR のコードを本番前に検証する環境。
+**リソース一覧（下表）はここが正、構成・セットアップ手順・運用ルールは
+[docs/deploy-stage.md](docs/deploy-stage.md) が正**（内容を重複させない）。
 
 | リソース | 名前/ID |
 |---|---|
@@ -287,15 +289,9 @@ PR のコードを本番前に検証する環境。**構成・セットアップ
 | カスタムドメイン | `stage.pagebox.iodine2.net` / `view.stage.pagebox.iodine2.net` |
 | Cloudflare Access | `pagebox-stage`（Allow・ADMIN_EMAILS 限定、`make cf-stage-access-setup`）。**view 側はアプリを作らない＝公開**（本番の `view.pagebox.iodine2.net` と同じ） |
 
-- **`stage` ラベルを付けた PR が stage を占有する。** 他 PR が確保中なら CI が落ちる
-- **D1 / R2 / KV は PR 間で共有**（PR ごとに DB は作らない）。壊れたら `make cf-stage-reset`
-- **マイグレーションは CI では流さない**。`make cf-stage-migrate` を手動実行する
-- **`CLOUDFLARE_API_TOKEN` は stage に置かない**ため `/admin` の外部 API 由来パネルは空欄になる
-
-> ⚠️ wrangler の `routes` は環境に**継承される**。`[env.stage]` の routes を消すと
-> `deploy --env stage` が本番のカスタムドメインを奪う。これを防ぐため
-> `scripts/check-stage-config.ts` が routes の一致・binding の本番重複・`TODO_` の残りを検証し、
-> **ローカルの `make stage-deploy` と CI の両方が deploy 前にこのゲートを通る**（fail closed）。
+運用ルール（`stage` ラベルによる占有、PR 間でのデータ共有、マイグレーションの扱い、
+`routes` が環境に継承される危険と `check-stage-config` のゲート）は
+[docs/deploy-stage.md](docs/deploy-stage.md) に一本化してある。
 
 ---
 
@@ -316,21 +312,16 @@ PR のコードを本番前に検証する環境。**構成・セットアップ
 
 ## 次のタスク
 
-### 優先度 中
+**タスク管理は [Backlog.md](https://backlog.md) に移した。** このファイルには「今どうなっているか」だけを書き、
+**「これからやること」は `backlog/tasks/` が正**とする（二重管理を避けるため、ここにタスク一覧を置かない）。
 
-| タスク | 内容 |
-|---|---|
-| **グループ招待** | 現在は個人グループのみ。他ユーザーを招待してドキュメント共有 |
-| **ページネーション** | ドキュメントが増えたときの一覧パフォーマンス対策 |
-| **特定版へのピン留め** | Claude Code artifact の「Always share latest version」トグル OFF 相当。共有 URL が指す版を最新以外に固定する。実装は `documents.pinned_version`（nullable）1列 + 配信側の 1 分岐で足りるが、現状は「常に最新」に固定している |
-| **バージョン数の上限** | 現在は無制限。R2 使用量が問題になったら「上限 N 版を超えたら最古を prune」を入れる（admin の総バージョン数・総サイズで監視できる） |
-| **版一覧のページング / 非同期削除** | **保持が無制限なので、版が数千件になると O(N) の経路が Workers の制約に当たる**（`GET /docs/:slug/share` と `GET /api/documents/:slug/versions` は全版を返し、削除は全版の blob を直列に消す）。版一覧を cursor pagination にし、削除は Queue 等で再開可能な batch cleanup にする必要がある。PR #10 のレビュー（gpt-5.6-sol）で指摘され、別機能として移送した項目 |
-| **部分失敗の reconciler** | R2 put 後に DB が失敗した場合の孤児 blob は `add-document-version.ts` が自分の分を補償削除するが、プロセス落ち等には対応できない。`pending`/`ready`/`deleting` の状態と冪等な cleanup を入れると完全になる（同レビューで移送） |
+```bash
+backlog task list --plain     # 一覧
+backlog task <id> --plain     # 詳細
+backlog board                 # かんばん表示
+backlog browser               # Web UI
+```
 
-### 優先度 低（Phase3）
+Claude Code からは MCP コネクタ（サーバー名 `backlog`）経由でも読み書きできる。
 
-| タスク | 内容 |
-|---|---|
-| **S3 ストレージアダプタ** | `src/adapters/storage/s3.ts` は `throw` のみ |
-| **Kubernetes デプロイ** | `deploy/k8s/` は未実装 |
-| **テスト追加** | `core/usecases/` のユニットテスト |
+PR #10 の codex レビューで指摘され「別機能として移送」と判断した項目も、すべて backlog に入れてある。

@@ -1,6 +1,7 @@
 # pagebox — Claude Code 向けメモ
 
 詳細は `HANDOVER.md` と `docs/` を参照。ここでは Claude Code が常に守るべき要点のみ。
+**これからやることは `backlog/tasks/`（Backlog.md）が正**。HANDOVER にタスク一覧を書かない。
 
 ## アーキテクチャ境界
 - `core/`・`http/` は `adapters/`・`db/` を **import しない**（ports/adapters）。新しいストレージ/DB は `ports/` のインターフェースを実装し `config/container.ts` で配線する。
